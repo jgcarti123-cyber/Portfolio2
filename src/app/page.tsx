@@ -1,3 +1,4 @@
+import { Connect4 } from "@/components/Connect4";
 import { Contributions } from "@/components/Contributions";
 import { CopyEmail } from "@/components/CopyEmail";
 import { Footer } from "@/components/Footer";
@@ -8,6 +9,7 @@ import { ListItemBody, rowClass, staticRowClass } from "@/components/ListItem";
 import { ProjectRow, ProjectsProvider } from "@/components/Projects";
 import { delay, Section, stagger } from "@/components/Section";
 import { Showcase } from "@/components/Showcase";
+import { StickyAside } from "@/components/StickyAside";
 import { connect, experience, featured as featuredData, profile, work as workData } from "@/data/site";
 import { withGallery } from "@/lib/gallery";
 
@@ -28,6 +30,7 @@ export default function Home() {
     <>
       <Showcase projects={featured} />
       <Contributions />
+      <Connect4 />
     </>
   );
 
@@ -120,12 +123,12 @@ export default function Home() {
 
             {/* Right column (desktop) */}
             <div className="hidden desktop:block">
-              <div className="sticky top-12 pt-5">
+              <StickyAside className="pt-5">
                 <TopBar active="home" className="fade-in mb-8" />
                 <div className="fade-in" style={delay(100)}>
                   {showcase}
                 </div>
-              </div>
+              </StickyAside>
             </div>
           </div>
         </main>
