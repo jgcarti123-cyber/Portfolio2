@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --breakpoint-desktop: 860px;
+  --font-sans: var(--font-inter), -apple-system, system-ui, sans-serif;
+  --ease-out-cubic: cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --contrib-0: #ebedf0;
+  --contrib-1: #aceebb;
+  --contrib-2: #4ac26b;
+  --contrib-3: #2da44e;
+  --contrib-4: #116329;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #f5f5f5;
+  --contrib-0: #1f1f1f;
+  --contrib-1: #0e4429;
+  --contrib-2: #006d32;
+  --contrib-3: #26a641;
+  --contrib-4: #39d353;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: #e5e5e5;
+}
+.dark ::selection {
+  background: #333;
+}
+
+/* Staggered entrance used across every page */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+.fade-in {
+  animation: fade-in 600ms var(--ease-out-cubic) both;
+}
+
+/* Clock digits and rotating subtitle */
+@keyframes blur-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+.blur-in {
+  animation: blur-in 200ms var(--ease-out-cubic) both;
+}
+
+/* Native <dialog> enter / exit */
+dialog.sheet {
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  transition:
+    opacity 200ms var(--ease-out-cubic),
+    transform 200ms var(--ease-out-cubic),
+    overlay 200ms allow-discrete,
+    display 200ms allow-discrete;
+}
+dialog.sheet[open] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+@starting-style {
+  dialog.sheet[open] {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+dialog.sheet::backdrop {
+  background: rgb(0 0 0 / 0);
+  backdrop-filter: blur(0);
+  transition:
+    background 200ms var(--ease-out-cubic),
+    backdrop-filter 200ms var(--ease-out-cubic),
+    overlay 200ms allow-discrete,
+    display 200ms allow-discrete;
+}
+dialog.sheet[open]::backdrop {
+  background: rgb(0 0 0 / 0.2);
+  backdrop-filter: blur(2px);
+}
+@starting-style {
+  dialog.sheet[open]::backdrop {
+    background: rgb(0 0 0 / 0);
+    backdrop-filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .blur-in {
+    animation: none;
+  }
+  dialog.sheet,
+  dialog.sheet::backdrop {
+    transition: none;
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
