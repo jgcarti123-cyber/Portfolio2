@@ -27,7 +27,11 @@ export function validMoves(board: Board): number[] {
 }
 
 /** Returns a new board with the disc dropped, plus the row it landed in. */
-export function drop(board: Board, col: number, player: Player): { board: Board; row: number } | null {
+export function drop(
+  board: Board,
+  col: number,
+  player: Player,
+): { board: Board; row: number } | null {
   const row = landingRow(board, col);
   if (row < 0) return null;
   const next = board.slice();
@@ -43,7 +47,9 @@ const DIRECTIONS = [
 ] as const;
 
 /** The winner and the four (or more) winning cells, or null. */
-export function findWin(board: Board): { player: Player; cells: number[] } | null {
+export function findWin(
+  board: Board,
+): { player: Player; cells: number[] } | null {
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const p = board[r * COLS + c];
@@ -52,7 +58,13 @@ export function findWin(board: Board): { player: Player; cells: number[] } | nul
         const cells = [r * COLS + c];
         let rr = r + dr;
         let cc = c + dc;
-        while (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && board[rr * COLS + cc] === p) {
+        while (
+          rr >= 0 &&
+          rr < ROWS &&
+          cc >= 0 &&
+          cc < COLS &&
+          board[rr * COLS + cc] === p
+        ) {
           cells.push(rr * COLS + cc);
           rr += dr;
           cc += dc;
@@ -64,7 +76,8 @@ export function findWin(board: Board): { player: Player; cells: number[] } | nul
   return null;
 }
 
-export const isFull = (board: Board) => board.every((c, i) => i >= COLS || c !== 0);
+export const isFull = (board: Board) =>
+  board.every((c, i) => i >= COLS || c !== 0);
 
 // ---------------------------------------------------------------------------------------------
 // Bot: negamax with alpha-beta pruning, centre-first move ordering and a window-count heuristic.
@@ -79,7 +92,8 @@ const WINDOWS: number[][] = (() => {
     for (let c = 0; c < COLS; c++)
       for (const [dr, dc] of DIRECTIONS) {
         const end = [r + 3 * dr, c + 3 * dc];
-        if (end[0] < 0 || end[0] >= ROWS || end[1] < 0 || end[1] >= COLS) continue;
+        if (end[0] < 0 || end[0] >= ROWS || end[1] < 0 || end[1] >= COLS)
+          continue;
         out.push([0, 1, 2, 3].map((k) => (r + k * dr) * COLS + (c + k * dc)));
       }
   return out;
@@ -117,7 +131,13 @@ function wins(board: Board, row: number, col: number): boolean {
     for (const sign of [1, -1]) {
       let r = row + dr * sign;
       let c = col + dc * sign;
-      while (r >= 0 && r < ROWS && c >= 0 && c < COLS && board[r * COLS + c] === p) {
+      while (
+        r >= 0 &&
+        r < ROWS &&
+        c >= 0 &&
+        c < COLS &&
+        board[r * COLS + c] === p
+      ) {
         n++;
         r += dr * sign;
         c += dc * sign;
@@ -128,7 +148,13 @@ function wins(board: Board, row: number, col: number): boolean {
   return false;
 }
 
-function negamax(board: Board, depth: number, alpha: number, beta: number, me: Player): number {
+function negamax(
+  board: Board,
+  depth: number,
+  alpha: number,
+  beta: number,
+  me: Player,
+): number {
   const moves = ORDER.filter((c) => board[c] === 0);
   if (!moves.length) return 0;
   if (depth === 0) return score(board, me);
@@ -137,7 +163,9 @@ function negamax(board: Board, depth: number, alpha: number, beta: number, me: P
   for (const col of moves) {
     const row = landingRow(board, col);
     board[row * COLS + col] = me;
-    const value = wins(board, row, col) ? WIN + depth : -negamax(board, depth - 1, -beta, -alpha, other(me));
+    const value = wins(board, row, col)
+      ? WIN + depth
+      : -negamax(board, depth - 1, -beta, -alpha, other(me));
     board[row * COLS + col] = 0;
     if (value > best) best = value;
     if (best > alpha) alpha = best;
@@ -149,7 +177,12 @@ function negamax(board: Board, depth: number, alpha: number, beta: number, me: P
 const DEPTH: Record<Difficulty, number> = { easy: 2, medium: 4, hard: 7 };
 
 /** The bot's column. `random` is injectable so tests are deterministic. */
-export function botMove(board: Board, me: Player, difficulty: Difficulty, random = Math.random): number {
+export function botMove(
+  board: Board,
+  me: Player,
+  difficulty: Difficulty,
+  random = Math.random,
+): number {
   const moves = ORDER.filter((c) => board[c] === 0);
   if (!moves.length) return -1;
 

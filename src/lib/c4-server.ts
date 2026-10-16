@@ -18,7 +18,8 @@ export const OWNER_COOKIE = "c4_owner";
 const OWNER_COOKIE_DAYS = 60;
 
 /** Environment value with stray spaces and newlines removed (easy to paste in by accident). */
-const env = (name: string) => (process.env[name] ?? "").trim().replace(/^["']|["']$/g, "");
+const env = (name: string) =>
+  (process.env[name] ?? "").trim().replace(/^["']|["']$/g, "");
 
 export function liveGamesConfigured() {
   return Boolean(
@@ -38,10 +39,8 @@ export async function guarded(
     return await run();
   } catch (e) {
     console.error(`[connect4] ${name} failed:`, e);
-    // TEMPORARY diagnostic (remove once live games work in production): error type and message only.
-    const debug = `${(e as Error)?.name}: ${String((e as Error)?.message).slice(0, 160)}`;
     return Response.json(
-      { error: "Something went wrong on our side, please try again", debug },
+      { error: "Something went wrong on our side, please try again" },
       { status: 500 },
     );
   }

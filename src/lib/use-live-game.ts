@@ -25,10 +25,23 @@ export function useLiveGame(id: string | null) {
     try {
       channel = sb
         .channel(`c4:${id}:${(subscriptions += 1)}`)
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "c4_games", filter: `id=eq.${id}` }, (p) => {
-          // Ignore out-of-order deliveries: the move count only ever goes up.
-          setRow((prev) => (prev && (p.new as GameRow).moves < prev.moves ? prev : (p.new as GameRow)));
-        })
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "c4_games",
+            filter: `id=eq.${id}`,
+          },
+          (p) => {
+            // Ignore out-of-order deliveries: the move count only ever goes up.
+            setRow((prev) =>
+              prev && (p.new as GameRow).moves < prev.moves
+                ? prev
+                : (p.new as GameRow),
+            );
+          },
+        )
         .subscribe();
     } catch {
       // Live updates are a nicety: if they can't start, the board still works through moves and reloads.

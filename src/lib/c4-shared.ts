@@ -19,4 +19,5 @@ export type GameRow = {
 };
 
 export const isExpired = (g: Pick<GameRow, "status" | "created_at">) =>
-  g.status === "waiting" && Date.now() - new Date(g.created_at).getTime() > JOIN_WINDOW_MS;
+  g.status === "waiting" &&
+  Date.now() - new Date(g.created_at).getTime() > JOIN_WINDOW_MS;

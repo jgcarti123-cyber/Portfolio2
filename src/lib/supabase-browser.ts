@@ -9,7 +9,13 @@ let client: SupabaseClient | null | undefined;
 export function supabaseBrowser() {
   if (client !== undefined) return client;
   const url = cleanSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim().replace(/^["']|["']$/g, "");
-  client = url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim().replace(
+    /^["']|["']$/g,
+    "",
+  );
+  client =
+    url && key
+      ? createClient(url, key, { auth: { persistSession: false } })
+      : null;
   return client;
 }
