@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export function GET(req: NextRequest) {
   return NextResponse.json({
     live: liveGamesConfigured(),
-    owner: liveGamesConfigured() && isOwner(req.cookies.get(OWNER_COOKIE)?.value),
+    owner:
+      liveGamesConfigured() && isOwner(req.cookies.get(OWNER_COOKIE)?.value),
   });
 }
