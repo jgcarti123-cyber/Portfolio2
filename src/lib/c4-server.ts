@@ -37,8 +37,10 @@ export async function guarded(
     return await run();
   } catch (e) {
     console.error(`[connect4] ${name} failed:`, e);
+    // TEMPORARY diagnostic (remove once live games work in production): error type and message only.
+    const debug = `${(e as Error)?.name}: ${String((e as Error)?.message).slice(0, 160)}`;
     return Response.json(
-      { error: "Something went wrong on our side, please try again" },
+      { error: "Something went wrong on our side, please try again", debug },
       { status: 500 },
     );
   }
