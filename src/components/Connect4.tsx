@@ -606,7 +606,8 @@ export function Connect4() {
               )}
               <p className="text-[11px] leading-snug text-neutral-400 dark:text-neutral-600">
                 Saves your name, note and moves for this game, plus a one-way
-                hash of your connection to limit spam.
+                hash of your connection to limit spam (one challenge every 5
+                minutes).
               </p>
               <div className="flex justify-end gap-2 text-xs">
                 <button

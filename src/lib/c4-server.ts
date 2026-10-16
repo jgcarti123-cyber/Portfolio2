@@ -135,7 +135,8 @@ export async function notifyOwner(
 }
 
 // ------------------------------------------------------------------ spam limits
-const IP_WINDOW_MS = 10 * 60 * 1000; // one challenge per visitor every 10 minutes
+const IP_WINDOW_MINUTES = 5; // one challenge per visitor every 5 minutes
+const IP_WINDOW_MS = IP_WINDOW_MINUTES * 60 * 1000;
 const DAILY_CAP = 40; // and never more than this many pings a day
 
 /** The visitor's address as Vercel reports it. */
@@ -154,13 +155,19 @@ export async function challengeBlocked(
 ): Promise<string | null> {
   const supabase = db();
   if (ipHash) {
-    const { count } = await supabase
+    const { data: recent } = await supabase
       .from("c4_seats")
-      .select("game_id", { count: "exact", head: true })
+      .select("created_at")
       .eq("ip_hash", ipHash)
-      .gt("created_at", new Date(Date.now() - IP_WINDOW_MS).toISOString());
-    if (count)
-      return "You've already pinged John a moment ago. Give it a few minutes, then try again.";
+      .gt("created_at", new Date(Date.now() - IP_WINDOW_MS).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (recent?.length) {
+      const waitMs =
+        IP_WINDOW_MS - (Date.now() - new Date(recent[0].created_at).getTime());
+      const mins = Math.max(1, Math.ceil(waitMs / 60000));
+      return `You can ping John once every ${IP_WINDOW_MINUTES} minutes. Please try again in about ${mins} ${mins === 1 ? "minute" : "minutes"}.`;
+    }
   }
   const { count: today } = await supabase
     .from("c4_games")
