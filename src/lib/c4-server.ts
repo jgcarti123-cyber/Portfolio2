@@ -7,6 +7,7 @@ import {
 } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { JOIN_WINDOW_MS, type GameRow } from "./c4-shared";
+import { cleanSupabaseUrl } from "./supabase-url";
 import type { Player } from "./connect4";
 
 export { isExpired, type GameRow } from "./c4-shared";
@@ -17,11 +18,11 @@ export const OWNER_COOKIE = "c4_owner";
 const OWNER_COOKIE_DAYS = 60;
 
 /** Environment value with stray spaces and newlines removed (easy to paste in by accident). */
-const env = (name: string) => (process.env[name] ?? "").trim();
+const env = (name: string) => (process.env[name] ?? "").trim().replace(/^["']|["']$/g, "");
 
 export function liveGamesConfigured() {
   return Boolean(
-    env("NEXT_PUBLIC_SUPABASE_URL") &&
+    cleanSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     env("SUPABASE_SECRET_KEY") &&
     env("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") &&
     env("C4_OWNER_SECRET"),
@@ -49,7 +50,7 @@ export async function guarded(
 /** Service-role client: bypasses RLS, so it only ever runs on the server. */
 export function db() {
   return createClient(
-    env("NEXT_PUBLIC_SUPABASE_URL"),
+    cleanSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL),
     env("SUPABASE_SECRET_KEY"),
     {
       auth: { persistSession: false, autoRefreshToken: false },
