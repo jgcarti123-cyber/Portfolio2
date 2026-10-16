@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { ClickSound } from "@/components/ClickSound";
 import { EdgeFades } from "@/components/EdgeFades";
+import { OwnerHeartbeat } from "@/components/OwnerHeartbeat";
 import { profile } from "@/data/site";
 import "./globals.css";
 
@@ -40,6 +41,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-background text-foreground">
         <ClickSound />
+        <OwnerHeartbeat />
         <EdgeFades />
         {children}
       </body>

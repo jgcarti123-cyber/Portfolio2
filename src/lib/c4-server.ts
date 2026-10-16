@@ -8,6 +8,7 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import { JOIN_WINDOW_MS, type GameRow } from "./c4-shared";
 import { cleanSupabaseUrl } from "./supabase-url";
+import { challengeMessage, sendTelegram, telegramConfigured } from "./telegram";
 import type { Player } from "./connect4";
 
 export { isExpired, type GameRow } from "./c4-shared";
@@ -84,6 +85,16 @@ export function verifyJoin(gameId: string, exp: string, sig: string) {
   );
 }
 
+/** A link that marks a browser as John's without starting a game, for keeping the site open as "online". */
+export function ownerLink(origin: string, minutes = 15) {
+  const exp = Date.now() + minutes * 60 * 1000;
+  return `${origin}/api/c4/owner?e=${exp}&s=${sign(`owner-link:${exp}`)}`;
+}
+
+export function verifyOwnerLink(exp: string, sig: string) {
+  return Number(exp) > Date.now() && safeEqual(sign(`owner-link:${exp}`), sig);
+}
+
 /** Cookie value that marks this browser as John's: an expiry plus its signature. */
 export function ownerCookieValue() {
   const exp = Date.now() + OWNER_COOKIE_DAYS * 24 * 60 * 60 * 1000;
@@ -104,15 +115,95 @@ export function isOwner(cookie: string | undefined) {
 }
 
 /**
- * Tells John a visitor wants to play. Phase 3 sends this to Telegram; until then it is logged,
- * so the Join link can be copied from the server logs (Vercel → Logs, or the dev terminal).
+ * Tells John a visitor wants to play, on Telegram with a Join button. Returns false only when
+ * Telegram is set up but refused the message; without Telegram (local dev) the link is logged.
  */
 export async function notifyOwner(
   game: Pick<GameRow, "visitor_name" | "visitor_note">,
   link: string,
-) {
-  console.info(
-    `[connect4] ${game.visitor_name} wants to play${game.visitor_note ? ` ("${game.visitor_note}")` : ""}: ${link}`,
+): Promise<boolean> {
+  if (!telegramConfigured()) {
+    console.info(
+      `[connect4] ${game.visitor_name} wants to play${game.visitor_note ? ` ("${game.visitor_note}")` : ""}: ${link}`,
+    );
+    return true;
+  }
+  return sendTelegram(challengeMessage(game.visitor_name, game.visitor_note), {
+    label: "Join game",
+    url: link,
+  });
+}
+
+// ------------------------------------------------------------------ spam limits
+const IP_WINDOW_MS = 10 * 60 * 1000; // one challenge per visitor every 10 minutes
+const DAILY_CAP = 40; // and never more than this many pings a day
+
+/** The visitor's address as Vercel reports it. */
+export function clientIp(req: { headers: Headers }): string | null {
+  const fwd = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return fwd || req.headers.get("x-real-ip") || null;
+}
+
+/** One-way hash of an address, salted with the site secret, so the raw address is never stored. */
+export const hashIp = (ip: string) =>
+  createHmac("sha256", secret()).update(`ip:${ip}`).digest("hex");
+
+/** Returns a message when this visitor should be turned away, or null when they may challenge. */
+export async function challengeBlocked(
+  ipHash: string | null,
+): Promise<string | null> {
+  const supabase = db();
+  if (ipHash) {
+    const { count } = await supabase
+      .from("c4_seats")
+      .select("game_id", { count: "exact", head: true })
+      .eq("ip_hash", ipHash)
+      .gt("created_at", new Date(Date.now() - IP_WINDOW_MS).toISOString());
+    if (count)
+      return "You've already pinged John a moment ago. Give it a few minutes, then try again.";
+  }
+  const { count: today } = await supabase
+    .from("c4_games")
+    .select("id", { count: "exact", head: true })
+    .gt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+  if ((today ?? 0) >= DAILY_CAP)
+    return "John's inbox is full for today. Try again tomorrow, or play the bot.";
+  return null;
+}
+
+/** Tidies up: forgets finished or expired games after a month. */
+export async function pruneOldGames() {
+  await db()
+    .from("c4_games")
+    .delete()
+    .lt(
+      "created_at",
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    );
+}
+
+// ------------------------------------------------------------------ online status
+const ONLINE_FOR_MS = 90 * 1000; // John counts as online for 90 seconds after his last check-in
+
+/** John's browser checks in while his tab is open and visible (online) or hands in its notice (offline). */
+export async function setOwnerOnline(online: boolean) {
+  const { error } = await db()
+    .from("c4_status")
+    .upsert({
+      id: 1,
+      last_seen: online ? new Date().toISOString() : new Date(0).toISOString(),
+    });
+  if (error) throw new Error(`could not save status: ${error.message}`);
+}
+
+export async function ownerOnline(): Promise<boolean> {
+  const { data } = await db()
+    .from("c4_status")
+    .select("last_seen")
+    .eq("id", 1)
+    .single();
+  return Boolean(
+    data && Date.now() - new Date(data.last_seen).getTime() < ONLINE_FOR_MS,
   );
 }
 

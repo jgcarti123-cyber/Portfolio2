@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { profile } from "@/data/site";
 import { Clock } from "./Clock";
+import { OnlineDot } from "./OnlineDot";
 import { RotatingText } from "./RotatingText";
 import { Toolbar, type ActivePage } from "./Toolbar";
 
@@ -19,6 +20,7 @@ export function NameBlock({ subtitle }: { subtitle: string | string[] }) {
           <span className="transition-colors duration-150 group-hover/name:text-neutral-300 dark:group-hover/name:text-neutral-700">
             eorge
           </span>
+          <OnlineDot />
         </h1>
       </Link>
       <p className="text-sm leading-5 text-neutral-400 dark:text-neutral-600">
