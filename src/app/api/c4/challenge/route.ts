@@ -8,6 +8,7 @@ import {
   newSeatToken,
   notifyOwner,
 } from "@/lib/c4-server";
+import { cleanSupabaseUrl } from "@/lib/supabase-url";
 
 /** A visitor challenges John: creates a waiting game and pings him with a Join link. */
 export async function POST(req: NextRequest) {
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
       console.error("[connect4] insert game failed:", error);
       // TEMPORARY diagnostic: Supabase's error code and message (never contains keys).
       return NextResponse.json(
-        { error: "Could not start a game", debug: `${error?.code ?? ""} ${String(error?.message ?? "no row returned").slice(0, 160)}` },
+        { error: "Could not start a game", debug: `${error?.code ?? ""} ${String(error?.message ?? "no row returned").slice(0, 100)} | ${String(error?.details ?? "").slice(0, 200)} | host=${new URL(cleanSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)).host}` },
         { status: 500 },
       );
     }
