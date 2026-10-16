@@ -38,11 +38,14 @@ export async function POST(req: NextRequest) {
       .insert({ visitor_name: name, visitor_note: note || null })
       .select("id, visitor_name, visitor_note")
       .single();
-    if (error || !game)
+    if (error || !game) {
+      console.error("[connect4] insert game failed:", error);
+      // TEMPORARY diagnostic: Supabase's error code and message (never contains keys).
       return NextResponse.json(
-        { error: "Could not start a game" },
+        { error: "Could not start a game", debug: `${error?.code ?? ""} ${String(error?.message ?? "no row returned").slice(0, 160)}` },
         { status: 500 },
       );
+    }
 
     const token = newSeatToken();
     const { error: seatError } = await supabase
