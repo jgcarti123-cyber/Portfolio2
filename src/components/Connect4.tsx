@@ -3,11 +3,13 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import {
   ArrowCounterClockwise,
+  ArrowRight,
   GameController,
   PaperPlaneTilt,
+  Robot,
   X,
 } from "@phosphor-icons/react/dist/ssr";
-import { isExpired, type GameRow } from "@/lib/c4-shared";
+import { isExpired, JOIN_WINDOW_MS, type GameRow } from "@/lib/c4-shared";
 import {
   botMove,
   COLS,
@@ -111,6 +113,74 @@ const discColor: Record<Player, string> = {
 const pill =
   "flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-900 dark:hover:text-neutral-300";
 
+const entryButton =
+  "group flex min-w-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-neutral-200 px-3 py-2.5 text-sm font-medium text-neutral-700 transition-all hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.98] dark:border-neutral-800 dark:text-neutral-300 dark:hover:border-neutral-700 dark:hover:bg-neutral-900";
+
+const card =
+  "mb-3 rounded-xl bg-neutral-50 ring-1 ring-neutral-200/70 dark:bg-neutral-900 dark:ring-neutral-800";
+
+const field =
+  "w-full rounded-lg bg-white px-3 py-1.5 text-sm outline-none ring-1 ring-neutral-200 placeholder:text-neutral-400 focus:ring-neutral-400 dark:bg-neutral-950 dark:ring-neutral-800 dark:focus:ring-neutral-600";
+
+const primaryButton =
+  "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-700 disabled:cursor-default disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white";
+
+const segment = (active: boolean) =>
+  `relative flex min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors duration-200 ${
+    active
+      ? "text-neutral-800 dark:text-neutral-100"
+      : "text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+  }`;
+
+/** John as an amber disc (his colour on the board), with a status ring or dot. */
+function JohnAvatar({
+  state = "idle",
+  online = false,
+  small = false,
+}: {
+  state?: "idle" | "waiting" | "joined";
+  online?: boolean;
+  small?: boolean;
+}) {
+  return (
+    <span
+      className={`relative flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${discColor[2]} ${small ? "size-4 text-[9px]" : "size-7 text-xs"}`}
+      aria-hidden
+    >
+      J
+      {state === "waiting" && (
+        <span className="absolute -inset-1 rounded-full ring-2 ring-[#ffb800]/60 motion-safe:animate-ping" />
+      )}
+      {state === "joined" && (
+        <span className="absolute -inset-1 rounded-full ring-2 ring-[#2da44e]" />
+      )}
+      {state === "idle" && online && (
+        <span
+          className={`absolute -right-0.5 -bottom-0.5 rounded-full bg-[#2da44e] ring-2 ring-white dark:ring-neutral-950 ${small ? "size-1.5" : "size-2.5"}`}
+        />
+      )}
+    </span>
+  );
+}
+
+/** The current time, ticking every second while `active`. */
+function useNow(active: boolean) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const tick = () => setNow(Date.now());
+    const first = setTimeout(tick, 0);
+    const id = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
+  }, [active]);
+  return now;
+}
+
+const SWITCH_SECONDS = 3;
+
 function BoardView({
   board,
   last,
@@ -194,8 +264,9 @@ function BoardView({
 }
 
 /**
- * Connect 4 under the GitHub graph. Visitors play a bot, and can challenge John: he gets pinged with a
- * private Join link, and when he joins they play live, with every move checked by the server.
+ * Connect 4 under the GitHub graph. Visitors play a bot, or challenge John: he gets pinged with a private
+ * Join link, they play the bot while they wait, and when he joins the board switches over to a live game
+ * where the server checks every move.
  */
 export function Connect4() {
   const hydrated = useHydrated();
@@ -237,7 +308,14 @@ export function Connect4() {
     row.status !== "expired" &&
     (pickedLiveView ?? (seat.seat === 2 || row.moves > 0)),
   );
-  const open = pickedOpen ?? Boolean(ownerSeat);
+  // A visitor's challenge, from the moment it's sent until they're on the live board.
+  const waiting = Boolean(
+    seat && row && row.status === "waiting" && !isExpired(row),
+  );
+  const joined = Boolean(
+    seat?.seat === 1 && row?.status === "live" && !liveView,
+  );
+  const open = pickedOpen ?? Boolean(ownerSeat || waiting || joined);
 
   const level = pickedLevel ?? (hydrated ? storedLevel() : "medium");
   const over = Boolean(game.win) || game.draw;
@@ -262,6 +340,30 @@ export function Connect4() {
   useEffect(() => {
     if (liveView && myTurnLive && lastMove != null) playTick(0.7);
   }, [liveView, myTurnLive, lastMove]);
+
+  // When John joins, the visitor's bot game hands over to the live one after a short countdown.
+  const [switchIn, setSwitchIn] = useState(SWITCH_SECONDS);
+  useEffect(() => {
+    if (!joined) return;
+    playTick(1.3);
+    let n = SWITCH_SECONDS;
+    const id = setInterval(() => {
+      n -= 1;
+      setSwitchIn(n);
+      if (n <= 0) {
+        clearInterval(id);
+        setOpen(true);
+        setLiveView(true);
+      }
+    }, 1000);
+    return () => {
+      clearInterval(id);
+      setSwitchIn(SWITCH_SECONDS);
+    };
+  }, [joined]);
+
+  // Ticks the "time left" on a waiting challenge, and lets it expire on screen.
+  const now = useNow(waiting);
 
   function move(col: number) {
     if (game.turn !== YOU || over) return;
@@ -296,6 +398,25 @@ export function Connect4() {
       localStorage.setItem(LEVEL_KEY, l);
     } catch {}
     setGame(newGame(YOU));
+  }
+
+  function openChallenge() {
+    setOpen(true);
+    if (!seat && !form)
+      setForm({ name: "", note: "", sending: false, error: "", turnstile: null });
+  }
+
+  // The opponent switch. A live game in progress has to be left from the footer, not by a stray tap here.
+  function pickBot() {
+    if (!liveView) setForm(null);
+    else if (row?.status === "done") forget();
+  }
+
+  function pickJohn() {
+    if (liveView) return;
+    if (seat?.seat === 1 && (row?.status === "live" || row?.status === "done"))
+      setLiveView(true);
+    else openChallenge();
   }
 
   async function sendChallenge(e: FormEvent) {
@@ -353,14 +474,25 @@ export function Connect4() {
   // ---------------------------------------------------------------- what to show
   const opponent = seat?.seat === 2 ? (row?.visitor_name ?? "Visitor") : "John";
   const liveOver = row?.status === "done";
-  const waiting = Boolean(
-    seat && row && row.status === "waiting" && !isExpired(row),
-  );
+  const canChallenge = !me.loaded || (me.live && !me.owner);
+  const timeLeft =
+    waiting && row
+      ? Math.max(
+          0,
+          JOIN_WINDOW_MS - (now - new Date(row.created_at).getTime()),
+        )
+      : 0;
+  const clock = `${Math.floor(timeLeft / 60_000)}:${String(Math.floor(timeLeft / 1000) % 60).padStart(2, "0")}`;
   const expired = Boolean(
     seat &&
     row &&
     (row.status === "expired" || (row.status === "waiting" && isExpired(row))),
   );
+
+  // The switch shows John's side from the moment a challenge starts; the board stays a warm-up against
+  // the bot until he joins, and the status line says so.
+  const warmingUp = !liveView && Boolean(form || waiting || joined);
+  const johnSide = liveView || warmingUp;
 
   const status = liveView
     ? liveOver
@@ -380,7 +512,9 @@ export function Connect4() {
         ? "Draw"
         : thinking
           ? "Bot is thinking…"
-          : game.board.every((c) => c === 0)
+          : warmingUp
+            ? "Warm-up vs bot"
+            : game.board.every((c) => c === 0)
             ? "Your move. Drop a disc"
             : "Your move";
 
@@ -389,319 +523,441 @@ export function Connect4() {
   return (
     <section className="mt-8" aria-label="Connect 4">
       {!open && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="group flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-neutral-200 py-2.5 text-sm font-medium text-neutral-700 transition-all hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.98] dark:border-neutral-800 dark:text-neutral-300 dark:hover:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          <span className="flex -space-x-1" aria-hidden>
-            <span className={`size-3 rounded-full ${discColor[1]}`} />
-            <span className={`size-3 rounded-full ${discColor[2]}`} />
-          </span>
-          Play Connect 4
-          <GameController
-            size={14}
-            weight="bold"
-            className="text-neutral-400 transition-transform group-hover:rotate-12"
-          />
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className={`${entryButton} w-full`}
+          >
+            <span className="flex shrink-0 -space-x-1" aria-hidden>
+              <span className={`size-3 rounded-full ${discColor[1]}`} />
+              <span className={`size-3 rounded-full ${discColor[2]}`} />
+            </span>
+            Play Connect 4
+            <GameController
+              size={14}
+              weight="bold"
+              className="shrink-0 text-neutral-400 transition-transform group-hover:rotate-12"
+            />
+          </button>
+          {/* Under the button, in the same rhythm as the graph's footer: John's status, and a way straight into a challenge. */}
+          {canChallenge && (
+            <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+              <span className="flex min-w-0 items-center gap-1.5 text-neutral-400 dark:text-neutral-600">
+                {(waiting || joined || me.online) && (
+                  <span className="relative flex size-1.5 shrink-0" aria-hidden>
+                    {waiting && (
+                      <span className="absolute inset-0 rounded-full bg-[#ffb800] opacity-60 motion-safe:animate-ping" />
+                    )}
+                    <span
+                      className={`relative size-1.5 rounded-full ${waiting ? "bg-[#ffb800]" : "bg-[#2da44e]"}`}
+                    />
+                  </span>
+                )}
+                <span className="truncate">
+                  {waiting ? (
+                    <>
+                      John&apos;s been pinged{" "}
+                      <span className="tabular-nums">· {clock}</span>
+                    </>
+                  ) : joined ? (
+                    "John joined!"
+                  ) : me.online ? (
+                    "John's online now"
+                  ) : (
+                    "Prefer a real opponent?"
+                  )}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(true);
+                  pickJohn();
+                }}
+                className="group/challenge -mr-1.5 flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
+              >
+                {waiting ? "Open game" : joined ? "Play now" : "Challenge John"}
+                <ArrowRight
+                  size={11}
+                  weight="bold"
+                  className="transition-transform group-hover/challenge:translate-x-0.5"
+                />
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <div
-        className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+        className={`grid transition-[grid-template-rows,margin] duration-300 ease-out ${open ? "-mb-6 grid-rows-[1fr]" : "mb-0 grid-rows-[0fr]"}`}
         inert={!open}
       >
-        <div
-          className="-mx-3 -mb-6 min-h-0 overflow-hidden px-3 pb-6" /* room for the board outline and shadow */
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-neutral-400 dark:text-neutral-600">
-              Connect 4{" "}
-              <span className="font-normal">
-                · vs {liveView ? opponent : "bot"}
-              </span>
-            </h2>
-            <div
-              className="-mr-1.5 flex items-center text-xs"
-              role="group"
-              aria-label="Bot difficulty"
-            >
-              {!liveView &&
-                LEVELS.map((l) => (
-                  <button
-                    key={l}
-                    type="button"
-                    onClick={() => changeLevel(l)}
-                    aria-pressed={level === l}
-                    className={`cursor-pointer rounded-md px-1.5 py-0.5 capitalize transition-colors duration-150 ${
-                      level === l
-                        ? "bg-neutral-100 font-medium text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
-                        : "text-neutral-400 hover:text-neutral-600 dark:text-neutral-600 dark:hover:text-neutral-400"
-                    }`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close Connect 4"
-                className="ml-1 flex size-5 cursor-pointer items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-600 dark:hover:bg-neutral-900 dark:hover:text-neutral-300"
-              >
-                <X size={12} weight="bold" />
-              </button>
-            </div>
-          </div>
-
-          {/* John sees who challenged him and what they wrote. */}
-          {liveView && seat?.seat === 2 && row?.visitor_note && (
-            <p className="mb-3 truncate text-xs text-neutral-500 dark:text-neutral-400">
-              “{row.visitor_note}”
-            </p>
-          )}
-
-          {liveView && row ? (
-            <BoardView
-              board={row.board}
-              last={
-                row.last_move != null
-                  ? {
-                      index: row.last_move,
-                      rows: Math.floor(row.last_move / COLS) + 1,
-                    }
-                  : null
-              }
-              winCells={row.win_cells}
-              over={liveOver}
-              canPlay={row.status === "live" && myTurnLive}
-              me={seat!.seat}
-              onMove={liveMove}
-            />
-          ) : (
-            <BoardView
-              board={game.board}
-              last={game.last}
-              winCells={game.win?.cells ?? null}
-              over={over}
-              canPlay={game.turn === YOU && !over}
-              me={YOU}
-              onMove={move}
-            />
-          )}
-
-          <div className="mt-2 flex items-center justify-between gap-3 text-xs text-neutral-400 dark:text-neutral-600">
-            <span
-              aria-live="polite"
-              className={
-                finished
-                  ? "font-medium text-neutral-700 dark:text-neutral-300"
-                  : undefined
-              }
-            >
-              {status}
-            </span>
-            <span className="-mr-1.5 flex items-center gap-2">
-              {liveView ? (
-                liveOver ? (
-                  <button type="button" onClick={forget} className={pill}>
-                    Back to bot
-                  </button>
-                ) : (
-                  <button type="button" onClick={leave} className={pill}>
-                    Leave game
-                  </button>
-                )
-              ) : (
-                <>
-                  <span
-                    className="tabular-nums"
-                    aria-label={`Score: you ${score.you}, bot ${score.bot}`}
-                  >
-                    You {score.you} · Bot {score.bot}
+        <div className="-mx-3 min-h-0 overflow-hidden">
+          {/* Room for the board outline and shadow; it lives inside the clipped row so nothing peeks out when closed. */}
+          <div className="px-3 pb-6">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              {canChallenge || liveView ? (
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="text-xs text-neutral-400 dark:text-neutral-600">
+                    vs
                   </span>
-                  <button type="button" onClick={restart} className={pill}>
-                    <ArrowCounterClockwise size={12} weight="bold" />
-                    New game
-                  </button>
-                </>
+                  {/* Who's on the other side of the board; the highlight slides to the live game when it starts. */}
+                  <div
+                    role="radiogroup"
+                    aria-label="Opponent"
+                    className="relative inline-grid min-w-0 grid-cols-2 rounded-lg bg-neutral-100 p-0.5 text-xs dark:bg-neutral-900"
+                  >
+                    <span
+                      aria-hidden
+                      className={`absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-md bg-white shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_1px_rgb(0_0_0/0.04)] transition-transform duration-300 ease-out dark:bg-neutral-800 dark:shadow-[0_0_0_1px_rgb(255_255_255/0.06)] ${johnSide ? "translate-x-full" : ""}`}
+                    />
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={!johnSide}
+                      onClick={pickBot}
+                      title={
+                        liveView && !liveOver
+                          ? "Finish or leave this game first"
+                          : waiting
+                            ? "You're playing the bot while John's on his way"
+                            : undefined
+                      }
+                      className={segment(!johnSide)}
+                    >
+                      <Robot size={13} weight="bold" className="shrink-0" />
+                      Bot
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={johnSide}
+                      onClick={pickJohn}
+                      className={segment(johnSide)}
+                    >
+                      {seat?.seat === 2 ? (
+                        <span
+                          className={`size-3 shrink-0 rounded-full ${discColor[1]}`}
+                          aria-hidden
+                        />
+                      ) : (
+                        <JohnAvatar
+                          small
+                          online={me.online}
+                          state={
+                            waiting ? "waiting" : joined ? "joined" : "idle"
+                          }
+                        />
+                      )}
+                      <span className="max-w-20 truncate">
+                        {liveView ? opponent : "John"}
+                      </span>
+                      {liveView && !liveOver && (
+                        <span
+                          className="size-1.5 shrink-0 rounded-full bg-[#ff4d4d] motion-safe:animate-pulse"
+                          role="img"
+                          aria-label="Live"
+                        />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <h2 className="text-xs font-semibold text-neutral-400 dark:text-neutral-600">
+                  Connect 4 <span className="font-normal">· vs bot</span>
+                </h2>
               )}
-            </span>
-          </div>
-
-          {moveError && liveView && (
-            <p className="mt-1 text-xs text-[#d92f3a]">{moveError}</p>
-          )}
-
-          {/* Challenge John: only when live games are set up and this visitor isn't already in one. */}
-          {!liveView && me.live && !me.owner && !seat && !form && (
-            <button
-              type="button"
-              onClick={() =>
-                setForm({
-                  name: "",
-                  note: "",
-                  sending: false,
-                  error: "",
-                  turnstile: null,
-                })
-              }
-              className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-300 py-2 text-xs font-medium text-neutral-600 transition-colors hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-400 dark:hover:border-neutral-600 dark:hover:bg-neutral-900"
-            >
-              <span
-                className={`size-2.5 rounded-full ${discColor[2]}`}
-                aria-hidden
-              />
-              Challenge John to a live game
-              {me.online && (
-                <span className="flex items-center gap-1 font-normal text-[#2da44e] dark:text-[#39d353]">
-                  <span
-                    className="size-1.5 rounded-full bg-current"
-                    aria-hidden
-                  />
-                  online now
-                </span>
-              )}
-            </button>
-          )}
-
-          {form && (
-            <form
-              onSubmit={sendChallenge}
-              className="mt-4 flex flex-col gap-2 rounded-xl bg-neutral-50 p-3 dark:bg-neutral-900"
-            >
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                {me.online
-                  ? "John is online and will get a ping. Keep playing the bot until he joins."
-                  : "John isn't online right now, but he'll get a ping and joins if he can. Keep playing the bot meanwhile."}
-              </p>
-              <input
-                required
-                maxLength={24}
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Your name"
-                aria-label="Your name"
-                autoFocus
-                className="rounded-lg bg-white px-3 py-1.5 text-sm outline-none ring-1 ring-neutral-200 placeholder:text-neutral-400 focus:ring-neutral-400 dark:bg-neutral-950 dark:ring-neutral-800 dark:focus:ring-neutral-600"
-              />
-              <input
-                maxLength={140}
-                value={form.note}
-                onChange={(e) => setForm({ ...form, note: e.target.value })}
-                placeholder="A note for John (optional)"
-                aria-label="A note for John"
-                className="rounded-lg bg-white px-3 py-1.5 text-sm outline-none ring-1 ring-neutral-200 placeholder:text-neutral-400 focus:ring-neutral-400 dark:bg-neutral-950 dark:ring-neutral-800 dark:focus:ring-neutral-600"
-              />
-              {me.human && TURNSTILE_SITE_KEY && (
-                <Turnstile
-                  key={checkKey}
-                  siteKey={TURNSTILE_SITE_KEY}
-                  onToken={(t) =>
-                    setForm((f) => (f ? { ...f, turnstile: t } : f))
-                  }
-                />
-              )}
-              {form.error && (
-                <p className="text-xs text-[#d92f3a]">{form.error}</p>
-              )}
-              <p className="text-[11px] leading-snug text-neutral-400 dark:text-neutral-600">
-                Saves your name, note and moves for this game, plus a one-way
-                hash of your connection to limit spam (one challenge every 5
-                minutes).
-              </p>
-              <div className="flex justify-end gap-2 text-xs">
+              <div className="-mr-1.5 ml-auto flex items-center text-[11px]">
+                {!liveView && (
+                  <div
+                    className="flex items-center"
+                    role="group"
+                    aria-label="Bot difficulty"
+                  >
+                    {LEVELS.map((l) => (
+                      <button
+                        key={l}
+                        type="button"
+                        onClick={() => changeLevel(l)}
+                        aria-pressed={level === l}
+                        className={`cursor-pointer rounded-md px-1 py-0.5 capitalize transition-colors duration-150 ${
+                          level === l
+                            ? "font-medium text-neutral-700 dark:text-neutral-300"
+                            : "text-neutral-400 hover:text-neutral-600 dark:text-neutral-600 dark:hover:text-neutral-400"
+                        }`}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <button
                   type="button"
-                  onClick={() => setForm(null)}
-                  className={`${pill} text-neutral-500`}
+                  onClick={() => setOpen(false)}
+                  aria-label="Close Connect 4"
+                  className="ml-1 flex size-5 cursor-pointer items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-600 dark:hover:bg-neutral-900 dark:hover:text-neutral-300"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={
-                    form.sending ||
-                    (me.human && Boolean(TURNSTILE_SITE_KEY) && !form.turnstile)
-                  }
-                  className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 font-medium text-white transition-colors hover:bg-neutral-700 disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white"
-                >
-                  <PaperPlaneTilt size={12} weight="bold" />
-                  {form.sending
-                    ? "Sending…"
-                    : me.human && TURNSTILE_SITE_KEY && !form.turnstile
-                      ? "Checking…"
-                      : "Ping John"}
+                  <X size={12} weight="bold" />
                 </button>
               </div>
-            </form>
-          )}
-
-          {/* The visitor's challenge, while it waits, once John joins, or if it timed out. */}
-          {!liveView && seat?.seat === 1 && row && (
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-neutral-50 px-3 py-2.5 text-xs dark:bg-neutral-900">
-              {waiting && (
-                <>
-                  <span className="flex items-center gap-2 text-neutral-600 dark:text-neutral-400">
-                    <span className="relative flex size-2">
-                      <span className="absolute inset-0 animate-ping rounded-full bg-[#ffb800] opacity-60" />
-                      <span className="relative size-2 rounded-full bg-[#ffb800]" />
-                    </span>
-                    John&apos;s been pinged. Waiting for him…
-                  </span>
-                  <button
-                    type="button"
-                    onClick={leave}
-                    className={`${pill} text-neutral-500`}
-                  >
-                    Cancel
-                  </button>
-                </>
-              )}
-              {row.status === "live" && (
-                <>
-                  <span className="flex items-center gap-2 font-medium text-neutral-800 dark:text-neutral-200">
-                    <span className="size-2 rounded-full bg-[#2da44e]" />
-                    John joined!
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setLiveView(true)}
-                    className="cursor-pointer rounded-lg bg-neutral-900 px-3 py-1 font-medium text-white hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-white"
-                  >
-                    Play John
-                  </button>
-                </>
-              )}
-              {expired && (
-                <>
-                  <span className="text-neutral-600 dark:text-neutral-400">
-                    John couldn&apos;t make it this time.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={forget}
-                    className={`${pill} text-neutral-500`}
-                  >
-                    OK
-                  </button>
-                </>
-              )}
-              {row.status === "done" && (
-                <>
-                  <span className="text-neutral-600 dark:text-neutral-400">
-                    Your game with John has ended.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setLiveView(true)}
-                    className={`${pill} text-neutral-500`}
-                  >
-                    See board
-                  </button>
-                </>
-              )}
             </div>
-          )}
+
+            {/* John sees who challenged him and what they wrote. */}
+            {liveView && seat?.seat === 2 && row?.visitor_note && (
+              <p className="mb-3 truncate text-xs text-neutral-500 dark:text-neutral-400">
+                “{row.visitor_note}”
+              </p>
+            )}
+
+            {/* Challenging John: the form, then the challenge while it waits, once he joins, or if it timed out. */}
+            {form && !liveView && (
+              <form
+                onSubmit={sendChallenge}
+                className={`${card} c4-card-in p-3`}
+              >
+                <div className="mb-2.5 flex items-center justify-between gap-2">
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {me.online ? (
+                      <>
+                        <span className="text-[#2da44e] dark:text-[#39d353]">
+                          John&apos;s online.
+                        </span>{" "}
+                        He&apos;ll get a ping on his phone.
+                      </>
+                    ) : (
+                      "John's away, but he'll get a ping on his phone."
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setForm(null)}
+                    aria-label="Cancel challenge"
+                    className="-mr-1 flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-200/60 hover:text-neutral-700 dark:text-neutral-600 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
+                  >
+                    <X size={11} weight="bold" />
+                  </button>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <input
+                    required
+                    maxLength={24}
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Your name"
+                    aria-label="Your name"
+                    autoFocus
+                    className={field}
+                  />
+                  <input
+                    maxLength={140}
+                    value={form.note}
+                    onChange={(e) => setForm({ ...form, note: e.target.value })}
+                    placeholder="Say hi (optional)"
+                    aria-label="A note for John"
+                    className={field}
+                  />
+                  {me.human && TURNSTILE_SITE_KEY && (
+                    <Turnstile
+                      key={checkKey}
+                      siteKey={TURNSTILE_SITE_KEY}
+                      onToken={(t) =>
+                        setForm((f) => (f ? { ...f, turnstile: t } : f))
+                      }
+                    />
+                  )}
+                  {form.error && (
+                    <p className="text-xs text-[#d92f3a]">{form.error}</p>
+                  )}
+                </div>
+                <div className="mt-2.5 flex items-center justify-between gap-3">
+                  <p className="text-xs leading-snug text-neutral-500 dark:text-neutral-400">
+                    You&apos;ll play the bot till he joins.
+                  </p>
+                  <button
+                    type="submit"
+                    disabled={
+                      form.sending ||
+                      (me.human && Boolean(TURNSTILE_SITE_KEY) && !form.turnstile)
+                    }
+                    className={primaryButton}
+                  >
+                    <PaperPlaneTilt size={12} weight="bold" />
+                    {form.sending
+                      ? "Sending…"
+                      : me.human && TURNSTILE_SITE_KEY && !form.turnstile
+                        ? "Checking…"
+                        : "Ping John"}
+                  </button>
+                </div>
+                <p className="mt-2.5 text-[10px] leading-snug text-neutral-400 dark:text-neutral-600">
+                  Saves your name, note and moves for this game, plus a one-way
+                  hash of your connection to limit spam (one challenge every 5
+                  minutes).
+                </p>
+              </form>
+            )}
+
+            {!liveView && seat?.seat === 1 && row && (
+              <div
+                key={row.status}
+                className={`${card} c4-card-in flex items-center gap-3 px-3 py-2.5`}
+                role="status"
+              >
+                {waiting && (
+                  <>
+                    <JohnAvatar state="waiting" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium text-neutral-800 dark:text-neutral-200">
+                        John&apos;s been pinged{" "}
+                        <span className="font-normal tabular-nums text-neutral-400 dark:text-neutral-600">
+                          · {clock}
+                        </span>
+                      </p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                        Play the bot till he joins.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={leave}
+                      className={`${pill} -mr-1 shrink-0 text-xs text-neutral-500`}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
+                {joined && (
+                  <>
+                    <JohnAvatar state="joined" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium text-neutral-800 dark:text-neutral-200">
+                        John joined!
+                      </p>
+                      <p className="text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
+                        Switching over in {Math.max(switchIn, 1)}…
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLiveView(true)}
+                      className={primaryButton}
+                    >
+                      Play now
+                      <ArrowRight size={12} weight="bold" />
+                    </button>
+                  </>
+                )}
+                {expired && (
+                  <>
+                    <JohnAvatar />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium text-neutral-800 dark:text-neutral-200">
+                        John couldn&apos;t make it
+                      </p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                        Try him again later.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={forget}
+                      className={`${pill} -mr-1 shrink-0 text-xs text-neutral-500`}
+                    >
+                      OK
+                    </button>
+                  </>
+                )}
+                {row.status === "done" && (
+                  <>
+                    <JohnAvatar />
+                    <p className="min-w-0 flex-1 text-[13px] text-neutral-600 dark:text-neutral-400">
+                      Your game with John has ended.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setLiveView(true)}
+                      className={`${pill} -mr-1 shrink-0 text-xs text-neutral-500`}
+                    >
+                      See board
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {liveView && row ? (
+              <BoardView
+                board={row.board}
+                last={
+                  row.last_move != null
+                    ? {
+                        index: row.last_move,
+                        rows: Math.floor(row.last_move / COLS) + 1,
+                      }
+                    : null
+                }
+                winCells={row.win_cells}
+                over={liveOver}
+                canPlay={row.status === "live" && myTurnLive}
+                me={seat!.seat}
+                onMove={liveMove}
+              />
+            ) : (
+              <BoardView
+                board={game.board}
+                last={game.last}
+                winCells={game.win?.cells ?? null}
+                over={over}
+                canPlay={game.turn === YOU && !over}
+                me={YOU}
+                onMove={move}
+              />
+            )}
+
+            <div className="mt-2 flex items-center justify-between gap-3 text-xs text-neutral-400 dark:text-neutral-600">
+              <span
+                aria-live="polite"
+                className={
+                  finished
+                    ? "font-medium text-neutral-700 dark:text-neutral-300"
+                    : undefined
+                }
+              >
+                {status}
+              </span>
+              <span className="-mr-1.5 flex items-center gap-2">
+                {liveView ? (
+                  liveOver ? (
+                    <button type="button" onClick={forget} className={pill}>
+                      Back to bot
+                    </button>
+                  ) : (
+                    <button type="button" onClick={leave} className={pill}>
+                      Leave game
+                    </button>
+                  )
+                ) : (
+                  <>
+                    <span
+                      className="tabular-nums"
+                      aria-label={`Score: you ${score.you}, bot ${score.bot}`}
+                    >
+                      You {score.you} · Bot {score.bot}
+                    </span>
+                    <button type="button" onClick={restart} className={pill}>
+                      <ArrowCounterClockwise size={12} weight="bold" />
+                      New game
+                    </button>
+                  </>
+                )}
+              </span>
+            </div>
+
+            {moveError && liveView && (
+              <p className="mt-1 text-xs text-[#d92f3a]">{moveError}</p>
+            )}
+          </div>
         </div>
       </div>
     </section>

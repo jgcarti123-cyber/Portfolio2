@@ -153,8 +153,20 @@ dialog.sheet[open]::backdrop {
   animation-fill-mode: both;
 }
 
+/* Connect 4: the challenge cards settle in from just above */
+@keyframes c4-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.99);
+  }
+}
+.c4-card-in {
+  animation: c4-card-in 220ms var(--ease-out-cubic) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .c4-drop {
+  .c4-drop,
+  .c4-card-in {
     animation: none;
   }
   .fade-in,
