@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ClickSound } from "@/components/ClickSound";
 import { EdgeFades } from "@/components/EdgeFades";
 import { OwnerHeartbeat } from "@/components/OwnerHeartbeat";
+import { PullCord } from "@/components/PullCord";
 import { profile } from "@/data/site";
 import "./globals.css";
 
@@ -43,6 +44,7 @@ export default function RootLayout({
         <ClickSound />
         <OwnerHeartbeat />
         <EdgeFades />
+        <PullCord />
         {children}
       </body>
     </html>

@@ -4,13 +4,10 @@ import Link from "next/link";
 import {
   Files,
   House,
-  Moon,
   SpeakerHigh,
   SpeakerSlash,
   Stack,
-  Sun,
 } from "@phosphor-icons/react/dist/ssr";
-import { useIsDark } from "@/lib/hooks";
 import { playTick, setSoundEnabled, useSoundEnabled } from "@/lib/sound";
 
 export type ActivePage = "home" | "skills" | "shelf";
@@ -41,15 +38,6 @@ function Tip({ label }: { label: string }) {
 
 export function Toolbar({ active }: { active: ActivePage }) {
   const sound = useSoundEnabled();
-  const dark = useIsDark();
-
-  function toggleTheme() {
-    const next = !dark;
-    document.documentElement.classList.toggle("dark", next);
-    try {
-      localStorage.setItem("theme", next ? "dark" : "light");
-    } catch {}
-  }
 
   function toggleSound() {
     setSoundEnabled(!sound);
@@ -79,15 +67,6 @@ export function Toolbar({ active }: { active: ActivePage }) {
       >
         {sound ? <SpeakerHigh size={16} weight="bold" /> : <SpeakerSlash size={16} weight="bold" />}
         <Tip label={sound ? "Sound on" : "Sound off"} />
-      </button>
-      <button
-        type="button"
-        onClick={toggleTheme}
-        className={`group/tip ${base} ${idle}`}
-        aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      >
-        {dark ? <Sun size={16} weight="bold" /> : <Moon size={16} weight="bold" />}
-        <Tip label={dark ? "Light" : "Dark"} />
       </button>
     </nav>
   );

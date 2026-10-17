@@ -164,7 +164,62 @@ dialog.sheet[open]::backdrop {
   animation: c4-card-in 220ms var(--ease-out-cubic) both;
 }
 
+/* The light-switch pull cord: a damped swing after each pull */
+@keyframes cord-swing-a {
+  0% { transform: rotate(0deg); }
+  18% { transform: rotate(7deg); }
+  38% { transform: rotate(-4.5deg); }
+  58% { transform: rotate(2.5deg); }
+  78% { transform: rotate(-1deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes cord-swing-b {
+  0% { transform: rotate(0deg); }
+  18% { transform: rotate(-7deg); }
+  38% { transform: rotate(4.5deg); }
+  58% { transform: rotate(-2.5deg); }
+  78% { transform: rotate(1deg); }
+  100% { transform: rotate(0deg); }
+}
+/* The bulb's halo breathes slowly */
+@keyframes cord-halo {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.25); }
+}
+.cord-halo { animation: cord-halo 3.6s ease-in-out infinite; }
+.cord-swing-a { animation: cord-swing-a 1s ease-out; }
+.cord-swing-b { animation: cord-swing-b 1s ease-out; }
+
+/* Lights out: the room dims with a stutter, like a dying bulb. The theme swaps while fully covered (68%). */
+@keyframes theme-flicker-dark {
+  0% { opacity: 0; }
+  18% { opacity: 0.55; }
+  26% { opacity: 0.18; }
+  40% { opacity: 0.85; }
+  48% { opacity: 0.6; }
+  62%, 72% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* Lights on: a couple of fast blinks before it catches, like a fluorescent tube warming up. */
+@keyframes theme-flicker-light {
+  0% { opacity: 0; }
+  8% { opacity: 0.75; }
+  14% { opacity: 0.05; }
+  26% { opacity: 0.85; }
+  32% { opacity: 0.12; }
+  48% { opacity: 0.95; }
+  62%, 72% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.theme-flicker-dark { animation-name: theme-flicker-dark; animation-timing-function: linear; animation-fill-mode: both; }
+.theme-flicker-light { animation-name: theme-flicker-light; animation-timing-function: linear; animation-fill-mode: both; }
+
 @media (prefers-reduced-motion: reduce) {
+  .cord-swing-a,
+  .cord-swing-b,
+  .cord-halo {
+    animation: none;
+  }
   .c4-drop,
   .c4-card-in {
     animation: none;
