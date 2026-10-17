@@ -21,3 +21,14 @@ export type GameRow = {
 export const isExpired = (g: Pick<GameRow, "status" | "created_at">) =>
   g.status === "waiting" &&
   Date.now() - new Date(g.created_at).getTime() > JOIN_WINDOW_MS;
+
+/**
+ * Keeps whichever copy of a game is furthest along. The move count only ever goes up, so an older
+ * or out-of-order copy is ignored; at the same count a status change (like the game ending) wins.
+ */
+export function newer(prev: GameRow | null, next: GameRow): GameRow {
+  if (!prev || prev.id !== next.id) return next;
+  if (next.moves > prev.moves) return next;
+  if (next.moves === prev.moves && next.status !== prev.status) return next;
+  return prev;
+}

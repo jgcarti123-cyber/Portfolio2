@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from "react";
 import {
   ArrowCounterClockwise,
   ArrowRight,
@@ -287,6 +293,7 @@ export function Connect4() {
     turnstile: string | null;
   } | null>(null);
   const [moveError, setMoveError] = useState("");
+  const sending = useRef(false); // a live move is on its way to the server
   const [checkKey, setCheckKey] = useState(0); // bumps to re-render the human check after a failed attempt
 
   // John arrives from his Join link as /?play=<id>; a visitor's own game is remembered in this browser.
@@ -374,16 +381,49 @@ export function Connect4() {
   }
 
   async function liveMove(col: number) {
-    if (!seat || !row) return;
+    if (!seat || !row || sending.current) return;
+    if (row.status !== "live" || row.turn !== seat.seat) return;
+    const result = drop(row.board, col, seat.seat);
+    if (!result) return;
+    const before = row;
+    const win = findWin(result.board);
+    const draw = !win && isFull(result.board);
     setMoveError("");
-    const res = await fetch("/api/c4/move", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: seat.id, col, token: seat.token }),
+    sending.current = true;
+    // Drop the disc straight away and hand the turn over; the server's answer confirms it a moment
+    // later. This also locks the board, so a second tap can't fire a second move.
+    setRow({
+      ...row,
+      board: result.board,
+      turn: seat.seat === 1 ? 2 : 1,
+      last_move: result.row * COLS + col,
+      moves: row.moves + 1,
+      ...(win
+        ? { status: "done", winner: win.player, win_cells: win.cells }
+        : {}),
+      ...(draw ? { status: "done", winner: 0 } : {}),
     });
-    const data = await res.json().catch(() => null);
-    if (res.ok && data) setRow(data as GameRow);
-    else setMoveError(data?.error ?? "That move didn't go through");
+    try {
+      const res = await fetch("/api/c4/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: seat.id, col, token: seat.token }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data) {
+        setRow(data as GameRow);
+      } else {
+        // Undo to the server's real board. A 409 only means this board was behind, so catch up quietly.
+        setRow((data?.row as GameRow | undefined) ?? before);
+        if (res.status !== 409)
+          setMoveError(data?.error ?? "That move didn't go through. Try again");
+      }
+    } catch {
+      setRow(before);
+      setMoveError("Connection hiccup. Try that move again");
+    } finally {
+      sending.current = false;
+    }
   }
 
   function restart() {

@@ -27,33 +27,29 @@ export async function POST(req: NextRequest) {
     if (!id || !Number.isInteger(col) || col < 0 || col > 6)
       return NextResponse.json({ error: "Bad move" }, { status: 400 });
 
+    // The game and the seat check don't depend on each other, so fetch them together.
     const supabase = db();
-    const { data: game } = await supabase
-      .from("c4_games")
-      .select("*")
-      .eq("id", id)
-      .single<GameRow>();
+    const [{ data: game }, seat] = await Promise.all([
+      supabase.from("c4_games").select("*").eq("id", id).single<GameRow>(),
+      seatFor(req.cookies.get(OWNER_COOKIE)?.value, id, body.token),
+    ]);
     if (!game)
       return NextResponse.json({ error: "Game not found" }, { status: 404 });
-    if (game.status !== "live")
-      return NextResponse.json(
-        { error: "This game isn't live" },
-        { status: 409 },
-      );
-
-    const seat = await seatFor(
-      req.cookies.get(OWNER_COOKIE)?.value,
-      id,
-      body.token,
-    );
     if (!seat)
       return NextResponse.json(
         { error: "You're not playing in this game" },
         { status: 403 },
       );
+    // Out-of-turn and finished-game moves come from a board that's behind: send the real one back
+    // so the browser can catch up quietly instead of showing an error.
+    if (game.status !== "live")
+      return NextResponse.json(
+        { error: "This game isn't live", row: game },
+        { status: 409 },
+      );
     if (seat !== game.turn)
       return NextResponse.json(
-        { error: "It's not your turn" },
+        { error: "It's not your turn", row: game },
         { status: 409 },
       );
 
@@ -67,7 +63,7 @@ export async function POST(req: NextRequest) {
     const draw = !win && isFull(result.board);
 
     // Only applies if nobody else moved in the meantime (moves is the version number).
-    const { data: updated } = await supabase
+    const { data: updated, error } = await supabase
       .from("c4_games")
       .update({
         board: result.board,
@@ -84,11 +80,20 @@ export async function POST(req: NextRequest) {
       .eq("moves", game.moves)
       .select("*")
       .single<GameRow>();
-    if (!updated)
+    if (!updated) {
+      // Someone else's move landed first (usually a double click). Hand back the board as it is now.
+      if (error && error.code !== "PGRST116")
+        console.error("[connect4] move update failed:", error);
+      const { data: now } = await supabase
+        .from("c4_games")
+        .select("*")
+        .eq("id", id)
+        .single<GameRow>();
       return NextResponse.json(
-        { error: "The board changed, try again" },
+        { error: "The board changed, try again", row: now },
         { status: 409 },
       );
+    }
     return NextResponse.json(updated);
   });
 }

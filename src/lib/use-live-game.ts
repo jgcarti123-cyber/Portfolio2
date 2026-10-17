@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { GameRow } from "./c4-shared";
+import { newer, type GameRow } from "./c4-shared";
 import { supabaseBrowser } from "./supabase-browser";
 
 let subscriptions = 0;
 
-/** Follows one live game: loads it, then applies every change Supabase pushes. */
+// Realtime pushes changes instantly; this light poll is the safety net if a push is missed or the
+// socket drops (phones going to sleep, flaky Wi-Fi), so a board can never stay stuck.
+const POLL_LIVE_MS = 2500;
+const POLL_WAITING_MS = 5000;
+
+/** Follows one live game: loads it, applies every change Supabase pushes, and polls as a fallback. */
 export function useLiveGame(id: string | null) {
   const [row, setRow] = useState<GameRow | null>(null);
+  const status = row && row.id === id ? row.status : null;
 
   useEffect(() => {
     const sb = supabaseBrowser();
@@ -33,24 +39,43 @@ export function useLiveGame(id: string | null) {
             table: "c4_games",
             filter: `id=eq.${id}`,
           },
-          (p) => {
-            // Ignore out-of-order deliveries: the move count only ever goes up.
-            setRow((prev) =>
-              prev && (p.new as GameRow).moves < prev.moves
-                ? prev
-                : (p.new as GameRow),
-            );
-          },
+          (p) => setRow((prev) => newer(prev, p.new as GameRow)),
         )
         .subscribe();
     } catch {
-      // Live updates are a nicety: if they can't start, the board still works through moves and reloads.
+      // Live updates are a nicety: the poll below keeps the board in step without them.
     }
     return () => {
       alive = false;
       if (channel) void sb.removeChannel(channel);
     };
   }, [id]);
+
+  // The fallback poll, only while something can still change, plus an instant check on coming back to the tab.
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    if (!id || !sb || (status !== "live" && status !== "waiting")) return;
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      void sb
+        .from("c4_games")
+        .select("*")
+        .eq("id", id)
+        .single<GameRow>()
+        .then(({ data }) => data && setRow((prev) => newer(prev, data)));
+    };
+    const timer = setInterval(
+      refresh,
+      status === "live" ? POLL_LIVE_MS : POLL_WAITING_MS,
+    );
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("online", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("online", refresh);
+    };
+  }, [id, status]);
 
   return [row && row.id === id ? row : null, setRow] as const;
 }
