@@ -66,7 +66,7 @@ export default function Home() {
                   using MCP servers, writing evals, and validating agents in real-world scenarios
                   with guardrails and security built in.
                 </p>
-                <p>Most importantly, reading and understanding every diff my coding agents write.</p>
+                <p>I read every diff my coding agents write. Always curious, always locked in.</p>
                 <p>
                   Reach me at <CopyEmail email={profile.email} /> or on{" "}
                   <InlineLink href={connect[2].href}>LinkedIn</InlineLink>.
