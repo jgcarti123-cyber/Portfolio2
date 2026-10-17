@@ -52,10 +52,14 @@ export default function Home() {
                   Solving problems and learning from the outcomes.
                 </p>
                 <p>
-                  Currently an AI full-stack engineer and Senior Manager at{" "}
-                  <InlineLink href="https://www.tatamotors.com">Tata Motors</InlineLink>, building AI
-                  agents and full-stack dashboards for the validation and connected-car telematics
-                  teams. Studied at <InlineLink href="https://nitc.ac.in">NIT Calicut</InlineLink>, India.
+                  Currently an{" "}
+                  <span className="font-medium text-neutral-800 dark:text-neutral-200">
+                    AI Engineer &amp; Agentic Systems Builder
+                  </span>{" "}
+                  and Senior Manager at{" "}
+                  <InlineLink href="https://www.tatamotors.com">Tata Motors</InlineLink>, building
+                  intelligent solutions that solve real-world business problems. Studied at{" "}
+                  <InlineLink href="https://nitc.ac.in">NIT Calicut</InlineLink>, India.
                 </p>
                 <p>
                   Shipping agentic systems: building harnesses, engineering context, building and

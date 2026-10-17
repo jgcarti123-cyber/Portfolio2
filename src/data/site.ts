@@ -3,13 +3,13 @@
 export const profile = {
   name: "John George",
   firstName: "John",
-  roles: ["AI Full-Stack Engineer", "Agentic Systems", "Senior Manager at Tata Motors"],
+  roles: ["AI Engineer", "Agentic Systems Builder", "Senior Manager at Tata Motors"],
   email: "johngeorge242001@gmail.com",
   location: "Kochi, IN",
   timeZone: "Asia/Kolkata",
   github: "jgcarti123-cyber",
   summary:
-    "AI full-stack engineer and Senior Manager at Tata Motors, shipping agentic systems — harnesses, context, MCP servers, evals and guardrails — and validating them in real-world use.",
+    "AI Engineer and Agentic Systems Builder, and Senior Manager at Tata Motors, building intelligent solutions that solve real-world business problems.",
 };
 
 export type Project = {
