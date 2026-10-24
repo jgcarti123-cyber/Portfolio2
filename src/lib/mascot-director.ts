@@ -5,10 +5,10 @@
 // ending, and J asks whether to carry on from wherever the visitor has got to. Everything J can physically do
 // (hop onto something, tap the ball, speak) comes in through `Deps`, so this file only decides what and when.
 
-import { heard, lines, markHeard, once, pick, type Ask } from "./mascot";
+import { heard, lines, markHeard, once, pick, type Ask, type Tone } from "./mascot";
 
 export type Deps = {
-  say: (text: string, ms?: number) => void;
+  say: (text: string, ms?: number, tone?: Tone) => void;
   /** Nothing is being said, and nothing was said a moment ago. */
   quiet: () => boolean;
   /** J is standing about with the ball and isn't busy with anything. */
@@ -110,9 +110,9 @@ export function createDirector(d: Deps) {
   };
   document.addEventListener("close", onSheetClosed, true); // dialog close events don't bubble
 
-  const talk = (text: string, ms?: number) => {
+  const talk = (text: string, ms?: number, tone?: Tone) => {
     lastTalk = performance.now();
-    d.say(text, ms);
+    d.say(text, ms, tone);
   };
   const wait = (ms: number) => new Promise<void>((res) => d.later(res, ms));
 

@@ -3,11 +3,19 @@
 import { profile } from "@/data/site";
 
 // J is the site's pixel footballer. Other components tell J what happened through this tiny event bus,
-// and every line J says lives here so the voice stays in one place: lowercase, understated, quietly sure of
-// itself. Never loud, never more than a sentence or two.
+// and every line J says lives here so the voice stays in one place: understated, quietly sure of itself,
+// set like print (sentence case, curly apostrophes, real dashes). Never loud, never more than a sentence or
+// two. **Double asterisks** mark the words that carry weight (the opener and the punchline of a longer line).
 
 /** A question J asks with two buttons: the words and the labels. */
 export type Ask = { text: string; yes: string; no: string };
+
+/**
+ * How a line arrives. `glide`: unhurried, for scripted lines (the intro, the tour, offers). `snap`: almost
+ * instant and quick to leave, for reactions to what the visitor just did. `jolt`: a snap with a small shake,
+ * for when J is irritated. `yellow` and `red`: a jolt with a coloured edge, for the cards.
+ */
+export type Tone = "glide" | "snap" | "jolt" | "yellow" | "red";
 
 export type MascotEvent =
   | { type: "cord"; dark: boolean }
@@ -41,113 +49,113 @@ export function onBulbHit(cb: () => void) {
 
 export const lines = {
   // First visit
-  hello: "j. john builds the agents. i handle the ball. we both deliver.",
-  dare: "the ball's right there. a single tap is all it takes.",
+  hello: "**J.** John builds the agents. I handle the ball. **We both deliver.**",
+  dare: "The ball’s right there. **A single tap is all it takes.**",
 
   // Poking and fouls
-  flinch: ["please don't.", "i'll allow it. once."],
-  yellow: "a yellow. bold of you.",
-  red: "a red. i'll be in the dressing room.",
-  back: "back. nothing happened.",
-  woken: "awake. i was resting my eyes.",
-  night: (time: string) => `it's ${time} in kochi. i was resting.`,
+  flinch: ["Please don’t.", "I’ll allow it. Once."],
+  yellow: "A yellow. Bold of you.",
+  red: "A red. I’ll be in the dressing room.",
+  back: "Back. Nothing happened.",
+  woken: "Awake. I was resting my eyes.",
+  night: (time: string) => `It’s ${time} in Kochi. I was resting.`,
 
   // The ball
-  kicked: "that's my ball. i'll allow it.",
-  bulb: "clean finish. the lights agree.",
-  newBall: "fresh ball. these things happen.",
-  flex: ["allow me.", "watch this.", "one second."],
-  flexHit: ["clean.", "and that's why i'm captain.", "on the house."],
-  firstBreak: "don't worry. it grows back.",
-  userBreak: ["it grows back.", "that's coming out of your wages."],
+  kicked: "That’s my ball. I’ll allow it.",
+  bulb: "Clean finish. The lights agree.",
+  newBall: "Fresh ball. These things happen.",
+  flex: ["Allow me.", "Watch this.", "One second."],
+  flexHit: ["Clean.", "And that’s why I’m captain.", "On the house."],
+  firstBreak: "Don’t worry. It grows back.",
+  userBreak: ["It grows back.", "That’s coming out of your wages."],
 
   // The rest of the site
-  dark: ["lights off. the stadium looks better.", "dark mode. an excellent call."],
-  light: ["a bit bright. we'll manage.", "floodlights on."],
-  cordSpam: ["it's a switch, not a fidget toy.", "decide. i'll wait."],
-  email: "copied. go on, say hello.",
-  online: "john's online. challenge him at connect 4. he plays to win.",
-  c4Lose: ["a loss. it happens to the best of us.", "the bot sends its regards."],
-  c4Draw: "a draw. very diplomatic.",
+  dark: ["Lights off. The stadium looks better.", "Dark mode. An excellent call."],
+  light: ["A bit bright. We’ll manage.", "Floodlights on."],
+  cordSpam: ["It’s a switch, not a fidget toy.", "Decide. I’ll wait."],
+  email: "Copied. Go on, say hello.",
+  online: "John’s online. Challenge him at Connect 4. He plays to win.",
+  c4Lose: ["A loss. It happens to the best of us.", "The bot sends its regards."],
+  c4Draw: "A draw. Very diplomatic.",
   c4Win: (level: string) =>
-    level === "hard" ? "you beat hard mode. i'd have been faster." : `you beat the ${level} bot. fine work.`,
+    level === "hard" ? "You beat hard mode. I’d have been faster." : `You beat the ${level} bot. Fine work.`,
   project: {
-    aiva: "aiva. 25+ engineers rely on it. no big deal.",
-    "prim-pets": "200+ vet documents. it knows more about dogs than i do.",
-    "swiggy-agent": "fills your cart, never checks out. discipline.",
-    "hil-runner": "tests a car from anywhere. the car doesn't mind.",
-    "docs-rag": "300 documents read so you don't have to.",
-    "yaml-generator": "replaced a vendor tool. quietly.",
+    aiva: "AIVA. 25+ engineers rely on it. No big deal.",
+    "prim-pets": "200+ vet documents. It knows more about dogs than I do.",
+    "swiggy-agent": "Fills your cart, never checks out. Discipline.",
+    "hil-runner": "Tests a car from anywhere. The car doesn’t mind.",
+    "docs-rag": "300 documents read so you don’t have to.",
+    "yaml-generator": "Replaced a vendor tool. Quietly.",
   } as Record<string, string>,
-  projectOther: "good taste.",
+  projectOther: "Good taste.",
 
   // Showing people around
-  askTour: { text: "shall i show you around?", yes: "Please", no: "No thanks" } as Ask,
+  askTour: { text: "Shall I show you around?", yes: "Please", no: "No thanks" } as Ask,
   askSkillsWalk: {
-    text: "this is the skills room. shall i show you which ones he'd bet on?",
+    text: "This is the skills room. Shall I show you which ones he’d bet on?",
     yes: "Show me",
-    no: "I'll pass",
+    no: "I’ll pass",
   } as Ask,
-  askResume: { text: "shall we carry on where we left off?", yes: "Carry on", no: "That's enough" } as Ask,
+  askResume: { text: "Shall we carry on where we left off?", yes: "Carry on", no: "That’s enough" } as Ask,
   askShelfWalk: {
-    text: "the shelf is quite well stocked. shall i show you the best of it?",
+    text: "The shelf is quite well stocked. Shall I show you the best of it?",
     yes: "Please",
     no: "No thanks",
   } as Ask,
-  tourStart: "right this way.",
-  otherPages: "there's more: shelf and skills. up here. you'll want both.",
-  shelfEnd: "those are the highlights. the rest of the shelf is yours.",
-  tourSkip: "understood. i'll be around.",
-  tourDecline: "of course. the offer stands.",
-  tourCancel: "understood. self-guided it is.",
-  tourEnd: "that's the lot. you've now seen more than most recruiters do.",
+  tourStart: "Right this way.",
+  otherPages: "There’s more: Shelf and Skills. Up here. You’ll want both.",
+  shelfEnd: "Those are the highlights. The rest of the shelf is yours.",
+  tourSkip: "Understood. I’ll be around.",
+  tourDecline: "Of course. The offer stands.",
+  tourCancel: "Understood. Self-guided it is.",
+  tourEnd: "That’s the lot. You’ve now seen more than most recruiters do.",
   tour: {
-    graph: "the graph. thirty days of commits. the green is deliberate.",
-    connect4: "connect 4. the bot is decent. john is better.",
-    Featured: "featured. start with aiva. everything else is the warm-up.",
-    "At Tata Motors": "the day job. connected cars, real hardware, 25+ engineers.",
-    Experience: "experience. short list. every line earns its place.",
-    Connect: "and this is where you say hello. he replies.",
+    graph: "The graph. Thirty days of commits. The green is deliberate.",
+    connect4: "Connect 4. The bot is decent. John is better.",
+    Featured: "Featured. Start with AIVA. Everything else is the warm-up.",
+    "At Tata Motors": "The day job. Connected cars, real hardware, 25+ engineers.",
+    Experience: "Experience. A short list. Every line earns its place.",
+    Connect: "And this is where you say hello. He replies.",
   } as Record<string, string>,
   peek: {
-    graph: "thirty days of commits. the green is deliberate.",
-    connect4: "connect 4. beat the bot and i'll notice.",
-    Featured: "featured. three projects, one clear favourite.",
-    "At Tata Motors": "the day job. 25+ engineers rely on this work.",
-    Experience: "short list. every line earns its place.",
-    Connect: "he replies. it's a known habit.",
-    footer: "that's the page. you've seen the work. now say hello.",
+    graph: "Thirty days of commits. The green is deliberate.",
+    connect4: "Connect 4. Beat the bot and I’ll notice.",
+    Featured: "Featured. Three projects, one clear favourite.",
+    "At Tata Motors": "The day job. 25+ engineers rely on this work.",
+    Experience: "A short list. Every line earns its place.",
+    Connect: "He replies. It’s a known habit.",
+    footer: "That’s the page. You’ve seen the work. Now say hello.",
   } as Record<string, string>,
   /** One line per list, in the order J shows them. */
   tourShelf: {
-    "ai-tools": "ai tools. claude and claude code are first for a reason.",
-    agents: "agent frameworks. langgraph, mcp, the claude agent sdk. the serious ones.",
-    read: "read. begin with building effective agents. required reading.",
-    music: "on repeat. i won't criticise the selection. but savage garden in the starting eleven? brave.",
+    "ai-tools": "AI tools. Claude and Claude Code are first for a reason.",
+    agents: "Agent frameworks. LangGraph, MCP, the Claude Agent SDK. The serious ones.",
+    read: "Read. Begin with Building Effective Agents. Required reading.",
+    music: "On Repeat. I won’t criticise the selection. But Savage Garden in the starting eleven? Brave.",
   } as Record<string, string>,
   /** What J says (one of these) when a visitor opens On Repeat on their own: the football-manager roast. */
   musicRoast: [
-    "i won't criticise the selection. but the squad has opinions.",
-    "a hundred-song squad and no rotation policy. mirrors alone is extra time.",
-    "savage garden in the starting eleven. brave. very brave.",
+    "I won’t criticise the selection. But the squad has opinions.",
+    "A hundred-song squad and no rotation policy. “Mirrors” alone is extra time.",
+    "Savage Garden in the starting eleven. Brave. Very brave.",
   ],
   tourSkills: {
-    "AI Engineering": "ai engineering. skills for building skills. a little recursive.",
-    "Full-Stack": "full-stack. the front end has standards. these are them.",
-    "Engineering Habits": "habits. tdd and code review. the boring things that win.",
+    "AI Engineering": "AI engineering. Skills for building skills. A little recursive.",
+    "Full-Stack": "Full-stack. The front end has standards. These are them.",
+    "Engineering Habits": "Habits. TDD and code review. The boring things that win.",
   } as Record<string, string>,
 
   // Getting people to open a project
   nudge: [
-    ["the projects are right there. no pressure.", "the good part of this page is one click away."],
-    ["some pressure. open aiva.", "aiva is waiting. it won't complain, but still."],
-    ["last call. aiva has a demo video. it's very good.", "final reminder. i'd click it. i'm biased."],
+    ["The projects are right there — no pressure.", "The good part of this page is one click away."],
+    ["Some pressure — open AIVA.", "AIVA is waiting. It won’t complain, but still."],
+    ["Last call. AIVA has a demo video. It’s very good.", "Final reminder. I’d click it. I’m biased."],
   ] as string[][],
-  nudgeScroll: "the projects are a short scroll down. i'll wait.",
+  nudgeScroll: "The projects are a short scroll down. I’ll wait.",
 };
 
 /** How long a line should stay up: a beat plus reading time. */
-export const readTime = (text: string) => Math.min(7000, 1400 + text.length * 45);
+export const readTime = (text: string) => Math.min(7000, 1400 + text.replace(/\*\*/g, "").length * 45);
 
 /** A random line that isn't the one picked last time from the same list. */
 const lastPick = new Map<readonly string[], string>();

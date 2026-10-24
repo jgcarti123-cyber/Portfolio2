@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useC4Status } from "@/lib/c4-status";
 import { useHydrated } from "@/lib/hooks";
-import { hitBulb, kochiTime, lines, once, onMascot, pick, readTime, type Ask } from "@/lib/mascot";
+import { hitBulb, kochiTime, lines, once, onMascot, pick, readTime, type Ask, type Tone } from "@/lib/mascot";
 import { createDirector } from "@/lib/mascot-director";
 import { createShatter } from "@/lib/mascot-shatter";
 import { BALL, drawFrame, FRAMES, type FrameName } from "@/lib/mascot-sprites";
@@ -51,12 +51,23 @@ type Card = "yellow" | "red";
 type Api = {
   poke: () => void;
   kick: (fromX: number) => void;
-  say: (text: string, ms?: number) => void;
+  say: (text: string, ms?: number, tone?: Tone) => void;
   reply: (yes: boolean) => void;
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const rand = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
+
+/**
+ * Sets a line the way a typesetter would: a one-letter word ("I", "A") or the "J." opener is bound to the word that
+ * follows, so a line never ends on one. Words a line marks with **double asterisks** come out semibold.
+ */
+function rich(text: string) {
+  return text
+    .replace(/(^|[\s*])(I|A|a|J\.)(\*\*)?\s+(?=\S)/g, "$1$2$3\u00a0")
+    .split(/\*\*(.+?)\*\*/g)
+    .map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : part));
+}
 
 export function Mascot() {
   const hydrated = useHydrated();
@@ -74,7 +85,15 @@ function Player() {
   const api = useRef<Api | null>(null);
 
   const [offer, setOffer] = useState<(Ask & { id: number }) | null>(null);
-  const [speech, setSpeech] = useState<{ text: string; id: number } | null>(null);
+  // `key` identifies the bubble itself, which stays mounted while one line replaces another, so the hand-over is a
+  // soft swap of the words and not a bubble popping out and back in. `leaving` plays the soft exit.
+  const [speech, setSpeech] = useState<{
+    text: string;
+    id: number;
+    tone: Tone;
+    key: number;
+    leaving: boolean;
+  } | null>(null);
   const [card, setCard] = useState<{ color: Card; id: number } | null>(null);
   const [mark, setMark] = useState<"!" | "z" | null>(null);
   const [count, setCount] = useState(0);
@@ -119,12 +138,25 @@ function Player() {
     let speechTimer: ReturnType<typeof setTimeout> | undefined;
     let speakingUntil = 0;
     let offerOn = false;
-    const say = (text: string, ms = 0) => {
-      const shown = Math.max(ms, readTime(text));
+    /** Fades the bubble out, then takes it down (unless something new has been said in the meantime). */
+    const hideSpeech = () => {
+      setSpeech((s) => (s ? { ...s, leaving: true } : s));
+      later(() => setSpeech((s) => (s?.leaving ? null : s)), 220);
+    };
+    /**
+     * Says a line. Reactions (snap, jolt, the cards) don't hang about; scripted lines (glide) stay as long as they
+     * take to read. A new line replaces whatever is up straight away: the bubble stays, the words swap, and the jolt
+     * tones replay their little shake.
+     */
+    const say = (text: string, ms = 0, tone: Tone = "glide") => {
+      const read = Math.max(ms, readTime(text));
+      const shown = tone === "glide" ? read : Math.max(1300, read * 0.8);
       if (speechTimer) clearTimeout(speechTimer);
       speakingUntil = performance.now() + shown;
-      setSpeech({ text, id: ++seq });
-      speechTimer = later(() => setSpeech(null), shown);
+      const id = ++seq;
+      const shakes = tone === "jolt" || tone === "yellow" || tone === "red";
+      setSpeech((prev) => ({ text, id, tone, leaving: false, key: shakes || !prev ? id : prev.key }));
+      speechTimer = later(hideSpeech, shown);
     };
     /** Nothing is being said, and nothing was said a moment ago. */
     const quiet = () => !offerOn && performance.now() > speakingUntil + 1200;
@@ -310,7 +342,7 @@ function Player() {
     const newBall = () => {
       b.held = true;
       b.vx = b.vy = 0;
-      say(lines.newBall, 1600);
+      say(lines.newBall, 1600, "snap");
     };
 
     /** Somewhere in a sentence on screen that J can reach with a lofted shot, or null. */
@@ -349,7 +381,7 @@ function Player() {
       flexAt = performance.now();
       aimAt = target;
       p.dir = target.x >= p.x ? 1 : -1;
-      say(pick(lines.flex), 1800);
+      say(pick(lines.flex), 1800, "snap");
       setMode("aim", 46);
       return true;
     };
@@ -373,9 +405,9 @@ function Player() {
     const afterBreak = () => {
       if (performance.now() - shotAt < 5000) {
         shotAt = -1e9;
-        if (Math.random() < 0.85) say(pick(lines.flexHit), 2200);
-      } else if (once("broke")) say(lines.firstBreak);
-      else if (Math.random() < 0.3 && quiet()) say(pick(lines.userBreak), 2200);
+        if (Math.random() < 0.85) say(pick(lines.flexHit), 2200, "snap");
+      } else if (once("broke")) say(lines.firstBreak, 0, "snap");
+      else if (Math.random() < 0.3 && quiet()) say(pick(lines.userBreak), 2200, "snap");
     };
 
     /** Picks J's next thing to do once the current one runs out. */
@@ -416,8 +448,8 @@ function Player() {
     const wake = () => {
       flash(null);
       setMode("idle", SECOND);
-      if (night && once("night")) say(lines.night(kochiTime()[1]), 3200);
-      else if (once("woken")) say(lines.woken, 2000);
+      if (night && once("night")) say(lines.night(kochiTime()[1]), 3200, "jolt");
+      else if (once("woken")) say(lines.woken, 2000, "snap");
     };
 
     const poke = () => {
@@ -432,7 +464,7 @@ function Player() {
       }
       playChirp(1 + pokes.length * 0.1);
       flash("!");
-      if (pokes.length === 2) say(pick(lines.flinch), 1500);
+      if (pokes.length === 2) say(pick(lines.flinch), 1500, "jolt");
       if (standing() && !reduce) {
         const then = p.mode === "chase" ? () => setMode("chase") : null;
         fall(then);
@@ -461,10 +493,10 @@ function Player() {
       later(() => setCard(null), 1800);
       if (card === "red") {
         booked = false;
-        say(lines.red, 3000);
+        say(lines.red, 3000, "red");
       } else {
         booked = true;
-        say(lines.yellow, 2600);
+        say(lines.yellow, 2600, "yellow");
       }
     };
 
@@ -480,7 +512,7 @@ function Player() {
       b.on = undefined;
       b.vx = away * rand(4.2, 7);
       b.vy = -rand(6, 9.5);
-      if (once("kicked")) say(lines.kicked, 2200);
+      if (once("kicked")) say(lines.kicked, 2200, "snap");
       if (p.mode === "sleep") wake();
       if (["idle", "walk", "juggle", "aim"].includes(p.mode)) {
         flash("!");
@@ -746,7 +778,7 @@ function Player() {
           p.y = floor().y;
           if (p.x > 70 && p.x < window.innerWidth - 70) {
             p.exiting = false;
-            say(lines.back, 2400);
+            say(lines.back, 2400, "snap");
             standOn(floor(), p.x);
             setMode("idle", SECOND);
           }
@@ -829,7 +861,7 @@ function Player() {
             hitBulb();
             b.vx = -b.vx * 0.6;
             b.vy = Math.abs(b.vy) * 0.3;
-            say(lines.bulb, 2000);
+            say(lines.bulb, 2000, "snap");
           }
         }
         // A fast ball that meets some text breaks it.
@@ -930,22 +962,22 @@ function Player() {
       if (e.type === "cord") {
         const now = performance.now();
         cordPulls = [...cordPulls.filter((t) => now - t < 5000), now];
-        if (cordPulls.length >= 3) say(pick(lines.cordSpam), 2400);
+        if (cordPulls.length >= 3) say(pick(lines.cordSpam), 2400, "jolt");
         else if (e.dark) {
-          say(pick(lines.dark), 2200);
+          say(pick(lines.dark), 2200, "snap");
           flash("!");
         } else {
-          say(pick(lines.light), 1800);
+          say(pick(lines.light), 1800, "snap");
           if (free) celebrate("handsOnHead", 50);
         }
       } else if (e.type === "project") {
         director.projectOpened();
-        say(lines.project[e.slug] ?? lines.projectOther, 3000);
+        say(lines.project[e.slug] ?? lines.projectOther, 3000, "snap");
         later(raise, 120);
       } else if (e.type === "shelf") {
         director.shelfOpened(e.slug);
       } else if (e.type === "email") {
-        say(lines.email, 2400);
+        say(lines.email, 2400, "snap");
         if (free && !reduce) {
           p.speed = 2.6;
           setMode("slide", 40);
@@ -953,7 +985,7 @@ function Player() {
       } else if (e.type === "c4") {
         if (e.result === "win") {
           playChirp(1.2, 2);
-          say(lines.c4Win(e.level), 3000);
+          say(lines.c4Win(e.level), 3000, "snap");
           if (free && !reduce) {
             fall(() => celebrate("siuuu", 80));
             p.vy = -7;
@@ -961,21 +993,23 @@ function Player() {
             p.airPose = "armsUp";
           }
         } else if (e.result === "lose") {
-          say(pick(lines.c4Lose), 2400);
+          say(pick(lines.c4Lose), 2400, "snap");
           if (free) celebrate("handsOnHead", 100);
         } else {
-          say(lines.c4Draw, 2400);
+          say(lines.c4Draw, 2400, "snap");
         }
       }
     });
 
     // First visit: hello, then the dare.
-    later(() => {
+    const hello = (tries = 0) => {
+      if (tries < 20 && !standing()) return void later(() => hello(tries + 1), 150); // let J land first
       if (!once("hello")) return;
       playChirp(1, 2);
       say(lines.hello);
-      later(() => say(lines.dare), readTime(lines.hello) + 300);
-    }, 1600);
+      later(() => say(lines.dare), readTime(lines.hello) + 500);
+    };
+    later(hello, 1600);
 
     return () => {
       cancelAnimationFrame(raf);
@@ -1036,26 +1070,19 @@ function Player() {
             className="pointer-events-auto absolute top-0 left-[7px] h-[30px] w-[18px] cursor-pointer touch-manipulation rounded-md outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
           />
           {offer !== null && (
-            <span
-              key={offer.id}
-              className="mascot-bubble blur-in pointer-events-auto flex w-max max-w-[240px] flex-col gap-2 rounded-2xl bg-neutral-900 px-3 py-2 text-xs leading-4 font-medium text-white shadow-[0_6px_20px_-8px_rgb(0_0_0/0.5)] dark:bg-neutral-100 dark:text-neutral-900"
-            >
-              {offer.text}
-              <span className="flex gap-1.5">
+            <span key={offer.id} data-tone="glide" data-offer className="mascot-bubble">
+              <span className="mascot-text">{rich(offer.text)}</span>
+              <span className="mascot-actions">
                 <button
                   type="button"
                   data-no-tick
+                  data-primary
                   onClick={() => api.current?.reply(true)}
-                  className="cursor-pointer rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-white/60 dark:bg-neutral-900 dark:text-white"
+                  className="mascot-btn"
                 >
                   {offer.yes}
                 </button>
-                <button
-                  type="button"
-                  data-no-tick
-                  onClick={() => api.current?.reply(false)}
-                  className="cursor-pointer rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60 dark:bg-black/10 dark:text-neutral-900"
-                >
+                <button type="button" data-no-tick onClick={() => api.current?.reply(false)} className="mascot-btn">
                   {offer.no}
                 </button>
               </span>
@@ -1063,11 +1090,15 @@ function Player() {
           )}
           {offer === null && speech && (
             <span
-              key={speech.id}
+              key={speech.key}
               aria-hidden
-              className="mascot-bubble blur-in pointer-events-none w-max max-w-[220px] rounded-2xl bg-neutral-900 px-3 py-1.5 text-xs leading-4 font-medium text-white shadow-[0_6px_20px_-8px_rgb(0_0_0/0.5)] dark:bg-neutral-100 dark:text-neutral-900"
+              data-tone={speech.tone}
+              data-leaving={speech.leaving || undefined}
+              className="mascot-bubble"
             >
-              {speech.text}
+              <span key={speech.id} className="mascot-text">
+                {rich(speech.text)}
+              </span>
             </span>
           )}
           {card && (
