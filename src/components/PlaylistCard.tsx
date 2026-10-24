@@ -26,6 +26,7 @@ export function PlaylistCard({ link }: { link: ShelfLink }) {
       target="_blank"
       rel="noreferrer"
       aria-label={`${link.name}, Spotify playlist by ${p.owner}, ${p.songs} songs`}
+      data-pulse
       className="group relative block h-full overflow-hidden rounded-xl text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.08),0_16px_40px_-20px_rgb(0_0_0/0.6)] outline-none transition-transform duration-300 ease-out hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-neutral-400 active:scale-[0.995]"
       style={{ background: `linear-gradient(180deg, ${rgb(p.color)} 0%, ${rgb(p.tint)} 62%, #121212 140%)` }}
     >

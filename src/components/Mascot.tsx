@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useC4Status } from "@/lib/c4-status";
 import { useHydrated } from "@/lib/hooks";
-import { hitBulb, kochiTime, lines, once, onMascot, pick, readTime } from "@/lib/mascot";
+import { hitBulb, kochiTime, lines, once, onMascot, pick, readTime, type Ask } from "@/lib/mascot";
 import { createDirector } from "@/lib/mascot-director";
 import { createShatter } from "@/lib/mascot-shatter";
 import { BALL, drawFrame, FRAMES, type FrameName } from "@/lib/mascot-sprites";
@@ -29,6 +29,7 @@ const BOTTOM_MIN = 24;
 const FLOOR_GAP = 10;
 const NIGHT_UNTIL = 6; // J sleeps from midnight to 6am in Kochi
 const SECOND = 60; // frames
+const HOP_GAP = 10 * SECOND; // J's own hops (not the tour's, a poke's or a fall) are at least this far apart
 
 type Surface = { el: Element | null; x1: number; x2: number; y: number };
 type Mode =
@@ -51,8 +52,7 @@ type Api = {
   poke: () => void;
   kick: (fromX: number) => void;
   say: (text: string, ms?: number) => void;
-  tour: () => void;
-  skip: () => void;
+  reply: (yes: boolean) => void;
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -73,7 +73,7 @@ function Player() {
   const fx = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
 
-  const [offer, setOffer] = useState<number | null>(null);
+  const [offer, setOffer] = useState<(Ask & { id: number }) | null>(null);
   const [speech, setSpeech] = useState<{ text: string; id: number } | null>(null);
   const [card, setCard] = useState<{ color: Card; id: number } | null>(null);
   const [mark, setMark] = useState<"!" | "z" | null>(null);
@@ -128,14 +128,14 @@ function Player() {
     };
     /** Nothing is being said, and nothing was said a moment ago. */
     const quiet = () => !offerOn && performance.now() > speakingUntil + 1200;
-    const showOffer = (on: boolean) => {
-      offerOn = on;
-      speakingUntil = performance.now() + (on ? 16000 : 0);
-      if (on) {
+    const showOffer = (ask: Ask | null) => {
+      offerOn = ask !== null;
+      speakingUntil = performance.now() + (ask ? 18_000 : 0);
+      if (ask) {
         if (speechTimer) clearTimeout(speechTimer);
         setSpeech(null);
       }
-      setOffer(on ? ++seq : null);
+      setOffer(ask ? { ...ask, id: ++seq } : null);
     };
     let markTimer: ReturnType<typeof setTimeout> | undefined;
     const flash = (m: "!" | "z" | null, ms = 700) => {
@@ -224,6 +224,12 @@ function Player() {
       p.vx = p.vy = 0;
     };
     let touches = 0;
+    let frame = 0; // steps of J's clock, 60 a second
+    let lastHop = -1e9; // the frame J last hopped
+    let lastScroll = 0; // the frame the page last moved
+    let lastScrollY = window.scrollY;
+    /** J hops on its own only when it hasn't just hopped and the page has stopped moving (it isn't being scrolled). */
+    const canHop = () => frame - lastHop > HOP_GAP && frame - lastScroll > 3 * SECOND;
     const mountedAt = performance.now();
     let aimAt: { x: number; y: number } | null = null; // the bit of text J is about to shoot at
     let flexAt = -1e9; // when J last lined up a shot of its own
@@ -238,9 +244,10 @@ function Player() {
       p.t = 0;
       p.until = frames;
     };
-    const fall = (then: (() => void) | null = null) => {
+    /** J drops. With `toFloor` nothing in between catches it: it goes all the way down to the bottom edge. */
+    const fall = (then: (() => void) | null = null, toFloor = false) => {
       p.from = undefined;
-      p.target = undefined;
+      p.target = toFloor ? null : undefined;
       p.on = undefined;
       p.vx = 0;
       p.vy = 0;
@@ -250,6 +257,7 @@ function Player() {
     };
     /** A hop that lands on surface `s` near x, worked out so the arc ends there. */
     const jumpTo = (s: Surface, x: number, then: (() => void) | null = null) => {
+      lastHop = frame;
       const tx = clamp(x, s.x1 + 10, s.x2 - 10);
       if (reduce) {
         standOn(s, tx);
@@ -259,24 +267,35 @@ function Player() {
       }
       const dx = tx - p.x;
       const dy = s.y - p.y;
-      const frames = clamp(Math.abs(dx) / 5 + Math.abs(dy) / 9, 22, 46);
+      // Climbing to the target takes time to reach the top of the arc and come back down onto it, or J
+      // arrives still rising and falls short: n(n-1) >= 2|dy|/G, plus a few frames to land going down.
+      // Going up, the climb sets the time (a longer arc would carry J far above the target); going down, distance does.
+      const climb = dy < 0 ? Math.ceil((1 + Math.sqrt(1 + (8 * -dy) / G)) / 2) + 3 : 0;
+      const frames = clamp(dy < 0 ? Math.max(climb, Math.abs(dx) / 5) : Math.abs(dx) / 5 + Math.abs(dy) / 9, 22, 110);
       p.from = p.on; // a hop down starts by moving down, so don't land straight back where it began
       p.target = s.el; // and a hop to something below another surface sails past the one in between
       p.on = undefined;
       p.vx = dx / frames;
-      p.vy = (dy - 0.5 * G * frames * frames) / frames;
+      // Gravity is added once a frame, then the frame's move: n frames cover n*vy + G*n*(n+1)/2.
+      p.vy = (dy - (G * frames * (frames + 1)) / 2) / frames;
       p.dir = dx >= 0 ? 1 : -1;
       p.airPose = "jump";
       p.afterLanding = then;
       setMode("air");
     };
-    /** J's surface scrolled away or vanished: fall, hop to another one, or wait on the bottom edge. */
+    /**
+     * J's surface scrolled away or vanished. J doesn't hop from one thing to the next as you scroll past them:
+     * it drops to the bottom edge, and hops back up only once it has been a while since its last hop.
+     */
     const leaveSurface = (s: Surface | null) => {
-      if (s && s.el && s.y < (dialog?.contains(s.el) ? TOP_MIN_SHEET : TOP_MIN)) return fall();
+      const offTop = Boolean(s && s.el && s.y < (dialog?.contains(s.el) ? TOP_MIN_SHEET : TOP_MIN));
       const options = visible().filter((o) => o.el !== p.on);
-      if (options.length) return jumpTo(nearest(options, p.x, p.y), p.x);
+      // Replaced rather than scrolled away (the Shelf swaps its cards when you open another list): stay put.
+      const under = options.find((o) => p.x >= o.x1 && p.x <= o.x2 && Math.abs(o.y - p.y) < 40);
+      if (!offTop && under) return standOn(under, p.x);
+      if (!offTop && options.length && canHop()) return jumpTo(nearest(options, p.x, p.y), p.x);
       if (s && s.y > window.innerHeight - BOTTOM_MIN) return standOn(floor(), p.x);
-      fall();
+      fall(null, true);
     };
 
     const footX = () => p.x + p.dir * 12;
@@ -363,12 +382,13 @@ function Player() {
     const decide = () => {
       if (!b.held) return setMode("chase");
       const page = visible();
-      if (p.on === null && page.length) return jumpTo(nearest(page, p.x, p.y), p.x);
+      const rested = canHop();
+      if (p.on === null && page.length && rested) return jumpTo(nearest(page, p.x, p.y), p.x);
       const r = Math.random();
       if (reduce) return setMode("idle", 3 * SECOND);
       if (r < 0.14 && flexReady() && flex()) return;
       const others = page.filter((s) => s.el !== p.on && Math.abs(s.y - p.y) < 420);
-      if (r < 0.1 && others.length) {
+      if (r < 0.04 && others.length && rested) {
         const s = others[Math.floor(Math.random() * others.length)];
         return jumpTo(s, rand(s.x1 + 20, s.x2 - 20));
       }
@@ -485,13 +505,16 @@ function Player() {
         setMode("idle", SECOND);
         then?.();
       };
-      if (p.on === target) {
+      const there = p.on === target || (p.on !== undefined && Math.abs(p.y - s.y) < 8 && Math.abs(p.x - x) < 40);
+      if (there) {
         p.dir = x >= p.x ? 1 : -1;
         arrive();
       } else jumpTo(s, x, arrive);
       return true;
     };
     const tap = () => {
+      // Only from the ground: a tap mid-hop would stop J's arc and leave it hanging in the air.
+      if (!standing() || !["idle", "walk", "juggle", "pose", "chase"].includes(p.mode)) return;
       p.pose = "kick";
       setMode("pose", 18);
     };
@@ -519,20 +542,23 @@ function Player() {
       poke,
       kick,
       say,
-      tour: () => void director.tour(),
-      skip: director.skip,
+      reply: director.reply,
     };
 
     // ---- The loop ----------------------------------------------------------------------------------
-    let frame = 0;
     let drawn = "";
     let drawnBall = -1;
     let below = false;
+    let onBar = false; // standing on the toolbar
     let align = "";
     let raf = 0;
 
     const tick = () => {
       frame++;
+      if (Math.abs(window.scrollY - lastScrollY) > 0.5) {
+        lastScrollY = window.scrollY;
+        lastScroll = frame;
+      }
       if (frame % 30 === 1) grounds = [...document.querySelectorAll("[data-ground]")];
       dialog = document.querySelector("dialog[open]");
       if (frame % (30 * SECOND) === 1) night = kochiTime()[0] < NIGHT_UNTIL;
@@ -635,9 +661,12 @@ function Player() {
             break;
           }
           if (p.vy > 0) {
-            const landing = [...visible(), floor()].find((s) => {
+            const pool = [...visible(), floor()];
+            const aimedAt = p.target ? surfaceOf(p.target) : null;
+            if (aimedAt && usable(aimedAt) && !pool.some((o) => o.el === p.target)) pool.push(aimedAt);
+            const landing = pool.find((s) => {
               if (s.el === p.from && p.t < 12) return false;
-              if (p.target !== undefined && s.el !== p.target && p.t < 70) return false; // 70: the page moved, give up
+              if (p.target !== undefined && s.el !== p.target && p.t < 140) return false; // 140: the page moved, give up
               const before = lastY.get(s.el) ?? s.y;
               return prevY <= before + 1 && p.y >= s.y && p.x >= s.x1 - 2 && p.x <= s.x2 + 2;
             });
@@ -846,13 +875,30 @@ function Player() {
         below = nextBelow;
         me.toggleAttribute("data-below", below);
       }
+      const nextBar = Boolean(p.on instanceof Element && p.on.closest('nav[aria-label="Site"]'));
+      if (nextBar !== onBar) {
+        onBar = nextBar;
+        me.toggleAttribute("data-bar", onBar);
+      }
       const nextAlign = p.x < 110 ? "left" : p.x > window.innerWidth - 110 ? "right" : "";
       if (nextAlign !== align) {
         align = nextAlign;
         if (align) me.dataset.align = align;
         else delete me.dataset.align;
       }
-      raf = requestAnimationFrame(tick);
+    };
+
+    // Everything above counts in 60ths of a second. Screens refresh at 60, 90, 120 or 144Hz, so a fixed-step
+    // clock runs `tick` the right number of times per frame instead of once per frame (which would make J
+    // twice as fast, and twice as quick to get bored, on a 120Hz screen).
+    const STEP = 1000 / 60;
+    let lastFrame = 0;
+    let owed = 0;
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      owed = Math.min(owed + (lastFrame ? now - lastFrame : STEP), STEP * 6); // don't catch up after a long pause
+      lastFrame = now;
+      for (let steps = 0; owed >= STEP - 0.5 && steps < 4; steps++, owed -= STEP) tick();
     };
 
     // Drop in from above onto something on screen.
@@ -861,7 +907,7 @@ function Player() {
     const first = start[Math.floor(Math.random() * start.length)];
     p.x = first ? rand(first.x1 + 30, first.x2 - 30) : window.innerWidth - 60;
     if (reduce) standOn(first ?? floor(), p.x);
-    raf = requestAnimationFrame(tick);
+    raf = requestAnimationFrame(loop);
 
     const onActivity = () => activity();
     window.addEventListener("pointermove", onActivity, { passive: true });
@@ -896,6 +942,8 @@ function Player() {
         director.projectOpened();
         say(lines.project[e.slug] ?? lines.projectOther, 3000);
         later(raise, 120);
+      } else if (e.type === "shelf") {
+        director.shelfOpened(e.slug);
       } else if (e.type === "email") {
         say(lines.email, 2400);
         if (free && !reduce) {
@@ -932,6 +980,7 @@ function Player() {
     return () => {
       cancelAnimationFrame(raf);
       clearInterval(ambientTimer);
+      director.dispose();
       timers.forEach(clearTimeout);
       shatter.clear();
       unsubscribe();
@@ -988,26 +1037,26 @@ function Player() {
           />
           {offer !== null && (
             <span
-              key={offer}
+              key={offer.id}
               className="mascot-bubble blur-in pointer-events-auto flex w-max max-w-[240px] flex-col gap-2 rounded-2xl bg-neutral-900 px-3 py-2 text-xs leading-4 font-medium text-white shadow-[0_6px_20px_-8px_rgb(0_0_0/0.5)] dark:bg-neutral-100 dark:text-neutral-900"
             >
-              {lines.offer}
+              {offer.text}
               <span className="flex gap-1.5">
                 <button
                   type="button"
                   data-no-tick
-                  onClick={() => api.current?.tour()}
+                  onClick={() => api.current?.reply(true)}
                   className="cursor-pointer rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-white/60 dark:bg-neutral-900 dark:text-white"
                 >
-                  {lines.offerYes}
+                  {offer.yes}
                 </button>
                 <button
                   type="button"
                   data-no-tick
-                  onClick={() => api.current?.skip()}
+                  onClick={() => api.current?.reply(false)}
                   className="cursor-pointer rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60 dark:bg-black/10 dark:text-neutral-900"
                 >
-                  {lines.offerNo}
+                  {offer.no}
                 </button>
               </span>
             </span>

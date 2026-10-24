@@ -6,10 +6,14 @@ import { profile } from "@/data/site";
 // and every line J says lives here so the voice stays in one place: lowercase, understated, quietly sure of
 // itself. Never loud, never more than a sentence or two.
 
+/** A question J asks with two buttons: the words and the labels. */
+export type Ask = { text: string; yes: string; no: string };
+
 export type MascotEvent =
   | { type: "cord"; dark: boolean }
   | { type: "project"; slug: string }
   | { type: "email" }
+  | { type: "shelf"; slug: string }
   | { type: "c4"; result: "win" | "lose" | "draw"; level: string };
 
 const EVENT = "mascot";
@@ -78,13 +82,25 @@ export const lines = {
   projectOther: "good taste.",
 
   // Showing people around
-  offer: "shall i show you around?",
-  offerYes: "Please",
-  offerNo: "No thanks",
+  askTour: { text: "shall i show you around?", yes: "Please", no: "No thanks" } as Ask,
+  askSkillsWalk: {
+    text: "this is the skills room. shall i show you which ones he'd bet on?",
+    yes: "Show me",
+    no: "I'll pass",
+  } as Ask,
+  askResume: { text: "shall we carry on where we left off?", yes: "Carry on", no: "That's enough" } as Ask,
+  askShelfWalk: {
+    text: "the shelf is quite well stocked. shall i show you the best of it?",
+    yes: "Please",
+    no: "No thanks",
+  } as Ask,
   tourStart: "right this way.",
+  otherPages: "there's more: shelf and skills. up here. you'll want both.",
+  shelfEnd: "those are the highlights. the rest of the shelf is yours.",
   tourSkip: "understood. i'll be around.",
+  tourDecline: "of course. the offer stands.",
   tourCancel: "understood. self-guided it is.",
-  tourEnd: "that's the tour. gratuities are optional.",
+  tourEnd: "that's the lot. you've now seen more than most recruiters do.",
   tour: {
     graph: "the graph. thirty days of commits. the green is deliberate.",
     connect4: "connect 4. the bot is decent. john is better.",
@@ -102,9 +118,23 @@ export const lines = {
     Connect: "he replies. it's a known habit.",
     footer: "that's the page. you've seen the work. now say hello.",
   } as Record<string, string>,
-  pages: {
-    "/shelf": "the shelf. what's on john's desk. taste is a skill.",
-    "/skills": "skills. the ones he actually uses.",
+  /** One line per list, in the order J shows them. */
+  tourShelf: {
+    "ai-tools": "ai tools. claude and claude code are first for a reason.",
+    agents: "agent frameworks. langgraph, mcp, the claude agent sdk. the serious ones.",
+    read: "read. begin with building effective agents. required reading.",
+    music: "on repeat. i won't criticise the selection. but savage garden in the starting eleven? brave.",
+  } as Record<string, string>,
+  /** What J says (one of these) when a visitor opens On Repeat on their own: the football-manager roast. */
+  musicRoast: [
+    "i won't criticise the selection. but the squad has opinions.",
+    "a hundred-song squad and no rotation policy. mirrors alone is extra time.",
+    "savage garden in the starting eleven. brave. very brave.",
+  ],
+  tourSkills: {
+    "AI Engineering": "ai engineering. skills for building skills. a little recursive.",
+    "Full-Stack": "full-stack. the front end has standards. these are them.",
+    "Engineering Habits": "habits. tdd and code review. the boring things that win.",
   } as Record<string, string>,
 
   // Getting people to open a project

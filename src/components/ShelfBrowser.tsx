@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
   BookOpen,
@@ -22,6 +22,7 @@ import {
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { shelfGroups, type ShelfIcon, type ShelfLink, type ShelfList } from "@/data/shelf";
 import { useHydrated } from "@/lib/hooks";
+import { tellMascot } from "@/lib/mascot";
 import { PlaylistCard } from "./PlaylistCard";
 import { delay, SectionLabel } from "./Section";
 
@@ -125,7 +126,10 @@ function GridCard({ link }: { link: ShelfLink }) {
       title={link.description}
       className="group block outline-none"
     >
-      <span className="relative flex aspect-[19/10] items-center justify-center overflow-hidden rounded-xl bg-neutral-50 shadow-[0_0_0_1px_rgb(0_0_0/0.06)] transition-all duration-200 group-hover:bg-neutral-100 group-focus-visible:ring-2 group-focus-visible:ring-neutral-300 group-active:scale-[0.98] dark:bg-neutral-900 dark:shadow-[0_0_0_1px_rgb(255_255_255/0.06)] dark:group-hover:bg-neutral-800">
+      <span
+        data-pulse
+        className="relative flex aspect-[19/10] items-center justify-center overflow-hidden rounded-xl bg-neutral-50 shadow-[0_0_0_1px_rgb(0_0_0/0.06)] transition-all duration-200 group-hover:bg-neutral-100 group-focus-visible:ring-2 group-focus-visible:ring-neutral-300 group-active:scale-[0.98] dark:bg-neutral-900 dark:shadow-[0_0_0_1px_rgb(255_255_255/0.06)] dark:group-hover:bg-neutral-800"
+      >
         {link.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -192,7 +196,7 @@ function Links({ links, view, offset = 0 }: { links: ShelfLink[]; view: View; of
     return (
       <div className="grid gap-3 sm:grid-cols-2">
         {links.map((l, i) => (
-          <div key={l.href} className="fade-in" style={delay(offset + i * 60)}>
+          <div key={l.href} data-ground="card" className="fade-in" style={delay(offset + i * 60)}>
             <PlaylistCard link={l} />
           </div>
         ))}
@@ -202,7 +206,7 @@ function Links({ links, view, offset = 0 }: { links: ShelfLink[]; view: View; of
   return view === "grid" ? (
     <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:gap-x-6 lg:grid-cols-3">
       {links.map((l, i) => (
-        <div key={l.href} className="fade-in" style={delay(offset + i * 30)}>
+        <div key={l.href} data-ground="card" className="fade-in" style={delay(offset + i * 30)}>
           <GridCard link={l} />
         </div>
       ))}
@@ -210,7 +214,7 @@ function Links({ links, view, offset = 0 }: { links: ShelfLink[]; view: View; of
   ) : (
     <div className="flex flex-col">
       {links.map((l, i) => (
-        <div key={l.href} className="fade-in" style={delay(offset + i * 20)}>
+        <div key={l.href} data-ground="card" className="fade-in" style={delay(offset + i * 20)}>
           <ListRow link={l} />
         </div>
       ))}
@@ -261,6 +265,7 @@ export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
   const [picked, setActive] = useState<string | null>(null);
   const [pickedView, setView] = useState<View | null>(null);
   const [expandedBy, setExpandedBy] = useState<Record<string, boolean>>({});
+  const [pickerOpen, setPickerOpen] = useState(true); // phones: every list as a tile, until one is picked
 
   const entries = useMemo(() => buildEntries(lists), [lists]);
 
@@ -275,6 +280,8 @@ export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
 
   function select(slug: string) {
     setActive(slug);
+    setPickerOpen(false);
+    tellMascot({ type: "shelf", slug });
     const url = new URL(window.location.href);
     url.searchParams.set("list", slug);
     window.history.replaceState(null, "", url);
@@ -296,15 +303,6 @@ export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
       localStorage.setItem("shelf-view", v);
     } catch {}
   }
-
-  // Keep the selected chip visible in the mobile scroller.
-  const chips = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const chip = chips.current?.querySelector<HTMLElement>(`[data-slug="${activeSlug}"]`);
-    if (!chip || !chips.current || chips.current.offsetParent === null) return;
-    const box = chips.current;
-    box.scrollTo({ left: chip.offsetLeft - (box.clientWidth - chip.clientWidth) / 2, behavior: "smooth" });
-  }, [activeSlug]);
 
   const viewToggle = (
     <div className="flex items-center gap-1" role="group" aria-label="Layout">
@@ -330,48 +328,75 @@ export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
     </div>
   );
 
-  const Chip = ({ slug, label, icon, nested }: { slug: string; label: string; icon?: ShelfIcon; nested?: boolean }) => {
-    const I = icon ? icons[icon] : null;
-    const on = slug === activeSlug;
-    return (
-      <button
-        data-slug={slug}
-        type="button"
-        onClick={() => select(slug)}
-        aria-pressed={on}
-        className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors ${
-          on
-            ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-            : nested
-              ? "bg-neutral-50 text-neutral-500 dark:bg-neutral-900/60 dark:text-neutral-500"
-              : "bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
-        }`}
-      >
-        {I && <I size={14} weight="bold" />}
-        {label}
-      </button>
-    );
-  };
-
   return (
     <div className="flex flex-col gap-8 desktop:grid desktop:grid-cols-[260px_1fr] desktop:gap-x-16">
       {/* Lists */}
       <nav aria-label="Lists">
         <SectionLabel style={delay(100)}>Lists</SectionLabel>
 
-        {/* Mobile: horizontal chips; a group's lists are chips carrying the group's icon */}
-        <div ref={chips} className="no-scrollbar relative -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 sm:-mx-8 sm:px-8 desktop:hidden">
-          {entries.map((e) =>
-            e.kind === "list" ? (
-              <Chip key={e.list.slug} slug={e.list.slug} label={e.list.label} icon={e.list.icon} />
-            ) : (
-              <div key={e.slug} className="contents">
-                {e.lists.map((l) => (
-                  <Chip key={l.slug} slug={l.slug} label={l.label} icon={e.icon} />
-                ))}
+        {/* Phones: every list at once as tiles. Picking one folds them into a bar that opens them again. */}
+        <div className="mt-4 desktop:hidden">
+          <button
+            type="button"
+            data-picker-bar
+            onClick={() => setPickerOpen((o) => !o)}
+            aria-expanded={pickerOpen}
+            className="flex w-full cursor-pointer items-center gap-3 rounded-xl bg-neutral-100 px-3 py-2.5 text-left text-sm outline-none transition-transform active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-neutral-300 dark:bg-neutral-900"
+          >
+            {(() => {
+              const I = icons[current.icon];
+              return <I size={16} weight="fill" className="text-neutral-700 dark:text-neutral-300" />;
+            })()}
+            <span className="flex-1 truncate font-medium">
+              {current.group ? `${current.group} · ${current.label}` : current.label}
+            </span>
+            <span className="text-xs tabular-nums text-neutral-400 dark:text-neutral-600">{current.links.length}</span>
+            <CaretDown
+              size={12}
+              weight="bold"
+              className={`text-neutral-400 transition-transform duration-200 dark:text-neutral-600 ${pickerOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          <div
+            className={`grid transition-[grid-template-rows] duration-200 ease-out ${pickerOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+            inert={!pickerOpen}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="grid grid-cols-3 gap-2 pt-2 sm:grid-cols-4">
+                {entries.flatMap((e) =>
+                  e.kind === "list"
+                    ? [{ list: e.list, icon: e.list.icon, group: undefined as string | undefined }]
+                    : e.lists.map((l) => ({ list: l, icon: e.icon, group: e.name })),
+                ).map(({ list, icon, group }) => {
+                  const I = icons[icon];
+                  const on = list.slug === activeSlug;
+                  return (
+                    <button
+                      key={list.slug}
+                      type="button"
+                      data-slug={list.slug}
+                      onClick={() => select(list.slug)}
+                      aria-pressed={on}
+                      className={`flex min-h-[72px] cursor-pointer flex-col justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-[13px] leading-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-neutral-300 ${
+                        on
+                          ? "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                          : "bg-neutral-100 text-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                      }`}
+                    >
+                      <span className="flex items-center justify-between">
+                        <I size={16} weight="bold" />
+                        <span className="text-[11px] tabular-nums opacity-60">{list.links.length}</span>
+                      </span>
+                      <span className="font-medium">
+                        {group && <span className="block text-[10px] font-normal tracking-wide uppercase opacity-60">{group}</span>}
+                        {list.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            ),
-          )}
+            </div>
+          </div>
         </div>
 
         {/* Desktop: vertical list with counts; groups fold open to their lists */}
@@ -384,6 +409,7 @@ export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
                 <li key={e.list.slug} className="fade-in" style={delay(125 + i * 20)}>
                   <button
                     type="button"
+                    data-slug={e.list.slug}
                     onClick={() => select(e.list.slug)}
                     aria-current={on ? "true" : undefined}
                     className={`group -mx-3 flex w-[calc(100%+1.5rem)] cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-left ${rowBase} ${on ? rowOn : rowOff}`}
@@ -440,6 +466,7 @@ export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
                           <button
                             key={l.slug}
                             type="button"
+                            data-slug={l.slug}
                             onClick={() => select(l.slug)}
                             aria-current={childOn ? "true" : undefined}
                             className={`flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-left ${rowBase} ${childOn ? rowOn : rowOff}`}

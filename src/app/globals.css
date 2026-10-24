@@ -235,6 +235,16 @@ dialog.sheet[open]::backdrop {
   right: 0;
   translate: 0 0;
 }
+/* J on the toolbar: the bubble sits beside J, above the icon row, so it never covers the icons. It's wide
+   enough to stay at three lines, and narrower on a phone so it doesn't run off the right edge. */
+[data-bar] .mascot-bubble {
+  top: auto;
+  bottom: 6px;
+  left: calc(100% + 2px);
+  right: auto;
+  translate: 0 0;
+  max-width: min(280px, calc(100vw - 150px));
+}
 .mascot-pop {
   animation: mascot-pop 280ms cubic-bezier(0.34, 1.7, 0.5, 1) both;
 }
