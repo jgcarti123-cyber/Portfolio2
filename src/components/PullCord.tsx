@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  useEffect,
+  useEffectEvent,
   useRef,
   useState,
   type MouseEvent,
   type PointerEvent,
 } from "react";
+import { onBulbHit, tellMascot } from "@/lib/mascot";
 import { useIsDark } from "@/lib/hooks";
 import { playSwitch } from "@/lib/sound";
 
@@ -41,6 +44,7 @@ export function PullCord() {
     if (busy.current) return;
     const toDark = !document.documentElement.classList.contains("dark");
     playSwitch(toDark);
+    tellMascot({ type: "cord", dark: toDark });
     setSwings((n) => n + 1);
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       applyTheme(toDark);
@@ -55,6 +59,10 @@ export function PullCord() {
       busy.current = false;
     }, FLICKER_MS + 40);
   }
+
+  // J kicking the ball into the bulb works like a tug.
+  const onBulb = useEffectEvent(() => tug());
+  useEffect(() => onBulbHit(onBulb), []);
 
   function tug() {
     setPull(TAP_PULL);

@@ -162,7 +162,7 @@ export function ContributionBars({ days, username }: { days: Day[] | null; usern
         : plural(total);
 
   return (
-    <div className="mt-5">
+    <div data-ground className="mt-5">
       <div key={range} className="blur-in" role="img" aria-label={`${summary} on GitHub`}>
         {!shown ? (
           <div className="flex h-5 gap-[3px]">

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy } from "@phosphor-icons/react/dist/ssr";
+import { tellMascot } from "@/lib/mascot";
 import { inlineLink } from "./InlineLink";
 
 export function CopyEmail({ email }: { email: string }) {
@@ -11,6 +12,7 @@ export function CopyEmail({ email }: { email: string }) {
     try {
       await navigator.clipboard.writeText(email);
       setCopied(true);
+      tellMascot({ type: "email" });
       setTimeout(() => setCopied(false), 1600);
     } catch {}
   }

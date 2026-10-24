@@ -16,6 +16,7 @@ import {
   X,
 } from "@phosphor-icons/react/dist/ssr";
 import { isExpired, JOIN_WINDOW_MS, type GameRow } from "@/lib/c4-shared";
+import { tellMascot } from "@/lib/mascot";
 import {
   botMove,
   COLS,
@@ -337,6 +338,7 @@ export function Connect4() {
       playTick(0.7);
       setGame(next);
       if (next.win) setScore((s) => ({ ...s, bot: s.bot + 1 }));
+      if (next.win || next.draw) tellMascot({ type: "c4", result: next.win ? "lose" : "draw", level });
     }, 450);
     return () => clearTimeout(id);
   }, [thinking, level, game]);
@@ -378,6 +380,7 @@ export function Connect4() {
     if (!next) return;
     setGame(next);
     if (next.win) setScore((s) => ({ ...s, you: s.you + 1 }));
+    if (next.win || next.draw) tellMascot({ type: "c4", result: next.win ? "win" : "draw", level });
   }
 
   async function liveMove(col: number) {
@@ -561,7 +564,7 @@ export function Connect4() {
   const finished = liveView ? liveOver : over;
 
   return (
-    <section className="mt-8" aria-label="Connect 4">
+    <section data-ground className="mt-8" aria-label="Connect 4">
       {!open && (
         <>
           <button

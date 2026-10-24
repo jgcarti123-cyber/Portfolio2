@@ -11,6 +11,7 @@ import {
 } from "react";
 import { ArrowUpRight, CaretLeft, CaretRight, X } from "@phosphor-icons/react/dist/ssr";
 import type { Project } from "@/data/site";
+import { tellMascot } from "@/lib/mascot";
 import { Icon } from "./Icon";
 import { ListItemBody, rowClass } from "./ListItem";
 import { ProjectTile } from "./ProjectTile";
@@ -35,6 +36,7 @@ export function ProjectsProvider({
       if (!p) return;
       setProject(p);
       setOpen(true);
+      tellMascot({ type: "project", slug });
     },
     [projects],
   );
@@ -193,7 +195,7 @@ function ProjectSheet({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl bg-background p-2 shadow-[0_24px_64px_-16px_rgb(0_0_0/0.25),0_0_0_1px_rgb(0_0_0/0.05)] dark:shadow-[0_24px_64px_-16px_rgb(0_0_0/0.8),0_0_0_1px_rgb(255_255_255/0.08)]">
+      <div data-ground className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl bg-background p-2 shadow-[0_24px_64px_-16px_rgb(0_0_0/0.25),0_0_0_1px_rgb(0_0_0/0.05)] dark:shadow-[0_24px_64px_-16px_rgb(0_0_0/0.8),0_0_0_1px_rgb(255_255_255/0.08)]">
         <div
           className={`relative overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-900 ${project.video ? "aspect-video" : "aspect-[16/10]"}`}
         >

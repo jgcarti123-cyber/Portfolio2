@@ -29,6 +29,7 @@ export function Showcase({ projects }: { projects: Project[] }) {
         onMouseLeave={() => setPaused(false)}
         onFocus={() => setPaused(true)}
         onBlur={() => setPaused(false)}
+        data-ground
         className="group/card relative block aspect-[16/10] w-full cursor-pointer overflow-hidden rounded-xl bg-neutral-100 shadow-[0_0_0_1px_rgb(0_0_0/0.06)] outline-none transition-transform duration-200 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-neutral-300 dark:bg-neutral-900 dark:shadow-[0_0_0_1px_rgb(255_255_255/0.06)]"
         aria-label={`View ${current.title}`}
       >

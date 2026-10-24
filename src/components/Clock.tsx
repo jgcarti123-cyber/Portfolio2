@@ -25,6 +25,7 @@ export function Clock({ timeZone }: { timeZone: string }) {
 
   return (
     <span
+      data-ground
       className="text-sm text-neutral-400 tabular-nums dark:text-neutral-600"
       aria-label={time ? `Local time ${time}` : undefined}
       title={`Local time · ${timeZone.replace("_", " ")}`}

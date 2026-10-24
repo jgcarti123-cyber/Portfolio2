@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { ClickSound } from "@/components/ClickSound";
 import { EdgeFades } from "@/components/EdgeFades";
+import { Mascot } from "@/components/Mascot";
 import { OwnerHeartbeat } from "@/components/OwnerHeartbeat";
 import { PullCord } from "@/components/PullCord";
 import { profile } from "@/data/site";
@@ -46,6 +47,7 @@ export default function RootLayout({
         <EdgeFades />
         <PullCord />
         {children}
+        <Mascot />
       </body>
     </html>
   );
