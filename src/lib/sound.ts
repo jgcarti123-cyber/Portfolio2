@@ -111,6 +111,41 @@ export function playWhistle() {
   } catch {}
 }
 
+/** Something breaking: a short burst of filtered noise with a few glassy pings on top. */
+export function playShatter() {
+  if (typeof window === "undefined" || !read()) return;
+  try {
+    ctx ??= new AudioContext();
+    if (ctx.state === "suspended") void ctx.resume();
+    const t = ctx.currentTime;
+    const length = Math.floor(ctx.sampleRate * 0.16);
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 2;
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = 2600;
+    const hiss = ctx.createGain();
+    hiss.gain.value = 0.07;
+    noise.connect(filter).connect(hiss).connect(ctx.destination);
+    noise.start(t);
+    [0, 0.025, 0.06].forEach((at, i) => {
+      const osc = ctx!.createOscillator();
+      const gain = ctx!.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 2600 + i * 900 + Math.random() * 500;
+      gain.gain.setValueAtTime(0.0001, t + at);
+      gain.gain.exponentialRampToValueAtTime(0.03, t + at + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.2);
+      osc.connect(gain).connect(ctx!.destination);
+      osc.start(t + at);
+      osc.stop(t + at + 0.21);
+    });
+  } catch {}
+}
+
 /** A ball being kicked: a short low thump. Quieter for bounces. */
 export function playKick(volume = 1) {
   if (typeof window === "undefined" || !read()) return;

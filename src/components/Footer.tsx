@@ -19,7 +19,7 @@ export function Footer({ style }: { style?: React.CSSProperties }) {
 
   return (
     <footer
-      data-ground
+      data-ground="footer"
       className="fade-in mt-16 flex items-center justify-between text-xs text-neutral-400 dark:text-neutral-600"
       style={style}
     >

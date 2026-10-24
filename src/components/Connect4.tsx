@@ -564,7 +564,7 @@ export function Connect4() {
   const finished = liveView ? liveOver : over;
 
   return (
-    <section data-ground className="mt-8" aria-label="Connect 4">
+    <section data-ground="connect4" className="mt-8" aria-label="Connect 4">
       {!open && (
         <>
           <button

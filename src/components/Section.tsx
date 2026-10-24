@@ -25,7 +25,7 @@ export function SectionLabel({
       <h2 className="shrink-0 text-xs font-semibold text-neutral-400 dark:text-neutral-600">
         {children}
       </h2>
-      <div data-ground className="flex-1 border-t border-dotted border-neutral-200 dark:border-neutral-800" />
+      <div data-ground={typeof children === "string" ? children : ""} className="flex-1 border-t border-dotted border-neutral-200 dark:border-neutral-800" />
       {right}
     </div>
   );

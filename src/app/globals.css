@@ -241,6 +241,16 @@ dialog.sheet[open]::backdrop {
 .mascot-z {
   animation: mascot-z 2.2s ease-in-out infinite;
 }
+/* A project row J is pointing at: a small shove to the side and a ring that spreads and fades. */
+.mascot-nudge {
+  animation: mascot-nudge 900ms ease-out 1;
+}
+@keyframes mascot-nudge {
+  0% { transform: translateX(0); box-shadow: 0 0 0 0 color-mix(in srgb, var(--foreground) 30%, transparent); }
+  30% { transform: translateX(5px); }
+  60% { transform: translateX(0); }
+  100% { transform: translateX(0); box-shadow: 0 0 0 12px color-mix(in srgb, var(--foreground) 0%, transparent); }
+}
 @keyframes mascot-pop {
   from {
     opacity: 0;
@@ -256,7 +266,8 @@ dialog.sheet[open]::backdrop {
 
 @media (prefers-reduced-motion: reduce) {
   .mascot-pop,
-  .mascot-z {
+  .mascot-z,
+  .mascot-nudge {
     animation: none;
   }
   .cord-swing-a,

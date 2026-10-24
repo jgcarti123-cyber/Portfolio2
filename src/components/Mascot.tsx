@@ -3,16 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useC4Status } from "@/lib/c4-status";
 import { useHydrated } from "@/lib/hooks";
-import { hitBulb, kochiTime, lines, once, onMascot, pick } from "@/lib/mascot";
+import { hitBulb, kochiTime, lines, once, onMascot, pick, readTime } from "@/lib/mascot";
+import { createDirector } from "@/lib/mascot-director";
+import { createShatter } from "@/lib/mascot-shatter";
 import { BALL, drawFrame, FRAMES, type FrameName } from "@/lib/mascot-sprites";
-import { playChirp, playKick, playWhistle } from "@/lib/sound";
+import { playChirp, playKick, playShatter, playWhistle } from "@/lib/sound";
 
 /**
  * J, the site's pixel footballer. J lives on the page itself: it stands on anything marked data-ground
  * (section rules, the project card, the GitHub graph, Connect 4, the footer, an open project sheet), rides
  * it as you scroll, and hops or falls to another one when it scrolls away. With nowhere to stand it waits on
  * the bottom edge of the window. It dribbles, juggles and naps on its ball, dives when poked, and chases
- * the ball when you kick it.
+ * the ball when you kick it. A ball that hits text breaks it into letters (see mascot-shatter.ts), and J now
+ * and then takes a shot at a sentence on its own. The director (mascot-director.ts) has J comment on sections,
+ * offer a tour and nudge people towards the projects.
  */
 
 const S = 2; // CSS pixels per sprite pixel
@@ -38,11 +42,18 @@ type Mode =
   | "pose"
   | "slide"
   | "sleep"
+  | "aim"
   | "leave"
   | "gone"
   | "enter";
 type Card = "yellow" | "red";
-type Api = { poke: () => void; kick: (fromX: number) => void; say: (text: string, ms?: number) => void };
+type Api = {
+  poke: () => void;
+  kick: (fromX: number) => void;
+  say: (text: string, ms?: number) => void;
+  tour: () => void;
+  skip: () => void;
+};
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const rand = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
@@ -59,8 +70,10 @@ function Player() {
   const sprite = useRef<HTMLCanvasElement>(null);
   const ball = useRef<HTMLButtonElement>(null);
   const ballSprite = useRef<HTMLCanvasElement>(null);
+  const fx = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
 
+  const [offer, setOffer] = useState<number | null>(null);
   const [speech, setSpeech] = useState<{ text: string; id: number } | null>(null);
   const [card, setCard] = useState<{ color: Card; id: number } | null>(null);
   const [mark, setMark] = useState<"!" | "z" | null>(null);
@@ -72,7 +85,8 @@ function Player() {
     const canvas = sprite.current;
     const ballEl = ball.current;
     const ballCanvas = ballSprite.current;
-    if (!el || !me || !canvas || !ballEl || !ballCanvas) return;
+    const fxEl = fx.current;
+    if (!el || !me || !canvas || !ballEl || !ballCanvas || !fxEl) return;
     const ctx = canvas.getContext("2d");
     const bctx = ballCanvas.getContext("2d");
     if (!ctx || !bctx) return;
@@ -81,7 +95,6 @@ function Player() {
     canvas.width = canvas.height = BOX * S * dpr;
     ballCanvas.width = ballCanvas.height = BALL_BOX * S * dpr;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const touch = !window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
     // The popover API puts J in the top layer, above the theme flicker and (re-shown) above a project sheet.
     try {
@@ -104,10 +117,25 @@ function Player() {
       return id;
     };
     let speechTimer: ReturnType<typeof setTimeout> | undefined;
-    const say = (text: string, ms = 2800) => {
+    let speakingUntil = 0;
+    let offerOn = false;
+    const say = (text: string, ms = 0) => {
+      const shown = Math.max(ms, readTime(text));
       if (speechTimer) clearTimeout(speechTimer);
+      speakingUntil = performance.now() + shown;
       setSpeech({ text, id: ++seq });
-      speechTimer = later(() => setSpeech(null), ms);
+      speechTimer = later(() => setSpeech(null), shown);
+    };
+    /** Nothing is being said, and nothing was said a moment ago. */
+    const quiet = () => !offerOn && performance.now() > speakingUntil + 1200;
+    const showOffer = (on: boolean) => {
+      offerOn = on;
+      speakingUntil = performance.now() + (on ? 16000 : 0);
+      if (on) {
+        if (speechTimer) clearTimeout(speechTimer);
+        setSpeech(null);
+      }
+      setOffer(on ? ++seq : null);
     };
     let markTimer: ReturnType<typeof setTimeout> | undefined;
     const flash = (m: "!" | "z" | null, ms = 700) => {
@@ -153,6 +181,7 @@ function Player() {
       dir: 1 as 1 | -1,
       on: undefined as Element | null | undefined, // null is the floor, undefined is mid-air
       from: undefined as Element | null | undefined, // the surface a hop took off from
+      target: undefined as Element | null | undefined, // the surface a hop is aimed at: nothing else catches J
       off: 0, // x from the left edge of the surface J stands on
       mode: "air" as Mode,
       t: 0,
@@ -195,15 +224,23 @@ function Player() {
       p.vx = p.vy = 0;
     };
     let touches = 0;
+    const mountedAt = performance.now();
+    let aimAt: { x: number; y: number } | null = null; // the bit of text J is about to shoot at
+    let flexAt = -1e9; // when J last lined up a shot of its own
+    let shotAt = -1e9; // when that shot left J's boot
+    let hold = false; // the tour or a nudge: stay put instead of wandering
+    const shatter = createShatter(fxEl);
     const setMode = (mode: Mode, frames = 0) => {
       if (p.mode === "juggle" && mode !== "juggle") setCount(0);
       if (p.mode === "sleep" && mode !== "sleep") setMark(null);
+      if (p.mode === "aim" && mode !== "aim") aimAt = null;
       p.mode = mode;
       p.t = 0;
       p.until = frames;
     };
     const fall = (then: (() => void) | null = null) => {
       p.from = undefined;
+      p.target = undefined;
       p.on = undefined;
       p.vx = 0;
       p.vy = 0;
@@ -224,6 +261,7 @@ function Player() {
       const dy = s.y - p.y;
       const frames = clamp(Math.abs(dx) / 5 + Math.abs(dy) / 9, 22, 46);
       p.from = p.on; // a hop down starts by moving down, so don't land straight back where it began
+      p.target = s.el; // and a hop to something below another surface sails past the one in between
       p.on = undefined;
       p.vx = dx / frames;
       p.vy = (dy - 0.5 * G * frames * frames) / frames;
@@ -256,6 +294,71 @@ function Player() {
       say(lines.newBall, 1600);
     };
 
+    /** Somewhere in a sentence on screen that J can reach with a lofted shot, or null. */
+    const textTarget = () => {
+      const root = document.querySelector("main");
+      if (!root) return null;
+      const range = document.createRange();
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const found: { x: number; y: number }[] = [];
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const text = n as Text;
+        if (text.data.trim().length < 8) continue;
+        const host = text.parentElement;
+        if (!host || host.closest("a, button, dialog, [popover], [aria-hidden='true']")) continue;
+        range.selectNodeContents(text);
+        const r = range.getClientRects()[0];
+        if (!r || r.width < 50 || r.top < 100 || r.bottom > window.innerHeight - 90) continue;
+        const x = r.left + r.width * rand(0.25, 0.75);
+        const y = r.top + r.height / 2;
+        const dx = x - p.x;
+        const dy = y - (p.y - 8);
+        if (Math.abs(dx) < 40 || Math.abs(dx) > 420 || dy < -240 || dy > 170) continue;
+        if (getComputedStyle(host).visibility !== "visible") continue;
+        found.push({ x, y });
+      }
+      return found.length ? found[Math.floor(Math.random() * found.length)] : null;
+    };
+    const flexReady = () => {
+      const now = performance.now();
+      return now - mountedAt > 16_000 && now - flexAt > 24_000 && b.held && standing() && !hold && !dialog && quiet();
+    };
+    /** J picks a sentence, says so, takes a moment to line it up, and then shoots. */
+    const flex = () => {
+      const target = textTarget();
+      if (!target) return false;
+      flexAt = performance.now();
+      aimAt = target;
+      p.dir = target.x >= p.x ? 1 : -1;
+      say(pick(lines.flex), 1800);
+      setMode("aim", 46);
+      return true;
+    };
+    const fire = () => {
+      const target = aimAt;
+      if (!target) return setMode("idle", SECOND);
+      // A lofted shot that arrives at the target after T frames: x moves at a constant speed, y follows gravity.
+      const T = 38;
+      b.held = false;
+      b.on = undefined;
+      b.x = footX();
+      b.y = p.y;
+      b.vx = clamp((target.x - b.x) / T, -9, 9);
+      b.vy = clamp((target.y - (b.y - 5) - (G * T * (T + 1)) / 2) / T, -16, 6);
+      shotAt = performance.now();
+      playKick();
+      p.pose = "kick";
+      setMode("pose", 16);
+    };
+    /** What J says after the ball breaks some text: pleased if it meant to, apologetic if you did it. */
+    const afterBreak = () => {
+      if (performance.now() - shotAt < 5000) {
+        shotAt = -1e9;
+        if (Math.random() < 0.85) say(pick(lines.flexHit), 2200);
+      } else if (once("broke")) say(lines.firstBreak);
+      else if (Math.random() < 0.3 && quiet()) say(pick(lines.userBreak), 2200);
+    };
+
     /** Picks J's next thing to do once the current one runs out. */
     const decide = () => {
       if (!b.held) return setMode("chase");
@@ -263,6 +366,7 @@ function Player() {
       if (p.on === null && page.length) return jumpTo(nearest(page, p.x, p.y), p.x);
       const r = Math.random();
       if (reduce) return setMode("idle", 3 * SECOND);
+      if (r < 0.14 && flexReady() && flex()) return;
       const others = page.filter((s) => s.el !== p.on && Math.abs(s.y - p.y) < 420);
       if (r < 0.1 && others.length) {
         const s = others[Math.floor(Math.random() * others.length)];
@@ -358,7 +462,7 @@ function Player() {
       b.vy = -rand(6, 9.5);
       if (once("kicked")) say(lines.kicked, 2200);
       if (p.mode === "sleep") wake();
-      if (["idle", "walk", "juggle"].includes(p.mode)) {
+      if (["idle", "walk", "juggle", "aim"].includes(p.mode)) {
         flash("!");
         setMode("pose", 24);
         p.pose = "stand";
@@ -368,7 +472,56 @@ function Player() {
       }
     };
 
-    api.current = { poke, kick, say };
+    // ---- What the director can ask J to do ----
+    const setHold = (on: boolean) => {
+      hold = on;
+      if (on && (p.mode === "walk" || p.mode === "juggle")) setMode("idle", SECOND);
+    };
+    const hop = (target: Element, at: number, then?: () => void) => {
+      const s = surfaceOf(target);
+      if (!s || !usable(s)) return false;
+      const x = s.x1 + (s.x2 - s.x1) * at;
+      const arrive = () => {
+        setMode("idle", SECOND);
+        then?.();
+      };
+      if (p.on === target) {
+        p.dir = x >= p.x ? 1 : -1;
+        arrive();
+      } else jumpTo(s, x, arrive);
+      return true;
+    };
+    const tap = () => {
+      p.pose = "kick";
+      setMode("pose", 18);
+    };
+    const away = () => {
+      if (!standing()) return;
+      const options = visible().filter((o) => o.el !== p.on);
+      if (options.length) jumpTo(nearest(options, p.x, p.y), p.x, () => setMode("idle", SECOND));
+    };
+    const director = createDirector({
+      say,
+      quiet,
+      free: () =>
+        standing() && b.held && !hold && !dialog && (p.mode === "idle" || p.mode === "walk" || p.mode === "juggle"),
+      hop,
+      tap,
+      away,
+      hold: setHold,
+      offer: showOffer,
+      later,
+      reduce,
+    });
+    const ambientTimer = setInterval(director.ambient, 1500);
+
+    api.current = {
+      poke,
+      kick,
+      say,
+      tour: () => void director.tour(),
+      skip: director.skip,
+    };
 
     // ---- The loop ----------------------------------------------------------------------------------
     let frame = 0;
@@ -399,7 +552,8 @@ function Player() {
         }
       }
 
-      // Dozing off when nobody's around: sooner at night in Kochi.
+      // Dozing off when nobody's around: sooner at night in Kochi. A tour or nudge keeps J up.
+      if (hold) lastActive = performance.now();
       const idleFor = performance.now() - lastActive;
       if (
         ["idle", "walk", "juggle"].includes(p.mode) &&
@@ -416,7 +570,8 @@ function Player() {
         case "idle":
           pose = performance.now() < blinkAt + 130 ? "blink" : "stand";
           if (performance.now() - blinkAt > rand(2500, 6000)) blinkAt = performance.now();
-          if (--p.until <= 0) decide();
+          if (hold) p.until = SECOND;
+          else if (--p.until <= 0) decide();
           break;
         case "walk":
           if (!cur) break;
@@ -424,7 +579,12 @@ function Player() {
           if (p.x <= cur.x1 + 10) p.dir = 1;
           if (p.x >= cur.x2 - 10) p.dir = -1;
           pose = Math.floor(p.t / 9) % 2 ? "run1" : "run2";
-          if (--p.until <= 0) decide();
+          if (hold) setMode("idle", SECOND);
+          else if (--p.until <= 0) decide();
+          break;
+        case "aim":
+          pose = p.until < 12 ? "kick" : "stand"; // the backswing
+          if (--p.until <= 0) fire();
           break;
         case "juggle":
           pose = b.y > p.y - 5 ? "kick" : "stand";
@@ -477,11 +637,13 @@ function Player() {
           if (p.vy > 0) {
             const landing = [...visible(), floor()].find((s) => {
               if (s.el === p.from && p.t < 12) return false;
+              if (p.target !== undefined && s.el !== p.target && p.t < 70) return false; // 70: the page moved, give up
               const before = lastY.get(s.el) ?? s.y;
               return prevY <= before + 1 && p.y >= s.y && p.x >= s.x1 - 2 && p.x <= s.x2 + 2;
             });
             if (landing) {
               p.from = undefined;
+              p.target = undefined;
               standOn(landing, p.x);
               p.spin = false;
               const then = p.afterLanding;
@@ -641,7 +803,20 @@ function Player() {
             say(lines.bulb, 2000);
           }
         }
+        // A fast ball that meets some text breaks it.
+        if (!reduce && !dialog && b.y > 20 && Math.hypot(b.vx, b.vy) > 3.2) {
+          ballEl.style.pointerEvents = "none"; // or the ball itself is what the hit test finds
+          const broke = shatter.hit(b.x, b.y - 5, b.vx, b.vy);
+          ballEl.style.pointerEvents = "";
+          if (broke) {
+            b.vx *= -0.45;
+            b.vy = -Math.abs(b.vy) * 0.35 - 1.5;
+            playShatter();
+            afterBreak();
+          }
+        }
       }
+      if (shatter.active) shatter.step([...visible(), floor()], Boolean(dialog));
 
       // Remember where every surface was, to catch things landing on a surface that scrolled this frame.
       lastY.clear();
@@ -693,6 +868,12 @@ function Player() {
     window.addEventListener("scroll", onActivity, { passive: true });
     window.addEventListener("keydown", onActivity);
     window.addEventListener("touchstart", onActivity, { passive: true });
+    // The visitor taking over ends a tour.
+    const onUser = () => director.interrupt();
+    window.addEventListener("wheel", onUser, { passive: true });
+    window.addEventListener("touchstart", onUser, { passive: true });
+    window.addEventListener("pointerdown", onUser);
+    window.addEventListener("keydown", onUser);
 
     // What happens elsewhere on the site.
     const unsubscribe = onMascot((e) => {
@@ -712,6 +893,7 @@ function Player() {
           if (free) celebrate("handsOnHead", 50);
         }
       } else if (e.type === "project") {
+        director.projectOpened();
         say(lines.project[e.slug] ?? lines.projectOther, 3000);
         later(raise, 120);
       } else if (e.type === "email") {
@@ -743,18 +925,24 @@ function Player() {
     later(() => {
       if (!once("hello")) return;
       playChirp(1, 2);
-      say(lines.hello, 2400);
-      later(() => say(lines.dare(touch), 3400), 2600);
+      say(lines.hello);
+      later(() => say(lines.dare), readTime(lines.hello) + 300);
     }, 1600);
 
     return () => {
       cancelAnimationFrame(raf);
+      clearInterval(ambientTimer);
       timers.forEach(clearTimeout);
+      shatter.clear();
       unsubscribe();
       window.removeEventListener("pointermove", onActivity);
       window.removeEventListener("scroll", onActivity);
       window.removeEventListener("keydown", onActivity);
       window.removeEventListener("touchstart", onActivity);
+      window.removeEventListener("wheel", onUser);
+      window.removeEventListener("touchstart", onUser);
+      window.removeEventListener("pointerdown", onUser);
+      window.removeEventListener("keydown", onUser);
       api.current = null;
     };
   }, []);
@@ -771,68 +959,97 @@ function Player() {
   }, [johnHere]);
 
   return (
-    <div
-      ref={root}
-      popover="manual"
-      className="pointer-events-none fixed z-[110] overflow-visible border-0 bg-transparent p-0 text-inherit"
-      style={{ inset: "auto", top: 0, left: 0, margin: 0 }}
-    >
-      <button
-        ref={ball}
-        type="button"
-        data-no-tick
-        aria-label="Kick J's ball"
-        onClick={(e) => api.current?.kick(e.detail === 0 ? -1 : e.clientX)}
-        className="pointer-events-auto absolute top-0 left-0 flex size-[22px] cursor-pointer touch-manipulation items-end justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+    <>
+      <div ref={fx} data-mascot-fx aria-hidden className="pointer-events-none fixed inset-0 z-[90]" />
+      <div
+        ref={root}
+        popover="manual"
+        className="pointer-events-none fixed z-[110] overflow-visible border-0 bg-transparent p-0 text-inherit"
+        style={{ inset: "auto", top: 0, left: 0, margin: 0 }}
       >
-        <canvas ref={ballSprite} aria-hidden style={{ width: BALL_BOX * S, height: BALL_BOX * S }} />
-      </button>
-      <div ref={body} className="absolute top-0 left-0" style={{ width: BOX * S, height: BOX * S }}>
-        <canvas ref={sprite} aria-hidden className="block" style={{ width: BOX * S, height: BOX * S }} />
         <button
+          ref={ball}
           type="button"
           data-no-tick
-          aria-label="J, the site's pixel footballer. Press to poke"
-          onClick={() => api.current?.poke()}
-          className="pointer-events-auto absolute top-0 left-[7px] h-[30px] w-[18px] cursor-pointer touch-manipulation rounded-md outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
-        />
-        {speech && (
-          <span
-            key={speech.id}
-            aria-hidden
-            className="mascot-bubble blur-in pointer-events-none w-max max-w-[220px] rounded-2xl bg-neutral-900 px-3 py-1.5 text-xs leading-4 font-medium text-white shadow-[0_6px_20px_-8px_rgb(0_0_0/0.5)] dark:bg-neutral-100 dark:text-neutral-900"
-          >
-            {speech.text}
-          </span>
-        )}
-        {card && (
-          <span
-            key={card.id}
-            aria-hidden
-            className={`mascot-pop absolute -top-4 left-[22px] h-[13px] w-[9px] rounded-[1px] shadow-[0_0_0_1.5px_#262626] ${
-              card.color === "red" ? "bg-[#ef4444]" : "bg-[#facc15]"
-            }`}
+          aria-label="Kick J's ball"
+          onClick={(e) => api.current?.kick(e.detail === 0 ? -1 : e.clientX)}
+          className="pointer-events-auto absolute top-0 left-0 flex size-[22px] cursor-pointer touch-manipulation items-end justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+        >
+          <canvas ref={ballSprite} aria-hidden style={{ width: BALL_BOX * S, height: BALL_BOX * S }} />
+        </button>
+        <div ref={body} className="absolute top-0 left-0" style={{ width: BOX * S, height: BOX * S }}>
+          <canvas ref={sprite} aria-hidden className="block" style={{ width: BOX * S, height: BOX * S }} />
+          <button
+            type="button"
+            data-no-tick
+            aria-label="J, the site's pixel footballer. Press to poke"
+            onClick={() => api.current?.poke()}
+            className="pointer-events-auto absolute top-0 left-[7px] h-[30px] w-[18px] cursor-pointer touch-manipulation rounded-md outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
           />
-        )}
-        {mark && !speech && (
-          <span
-            aria-hidden
-            className={`absolute inset-x-0 -top-3 text-center font-mono text-[11px] leading-none font-bold text-neutral-500 ${
-              mark === "z" ? "mascot-z" : "mascot-pop"
-            }`}
-          >
-            {mark}
-          </span>
-        )}
-        {count >= 3 && !speech && (
-          <span
-            aria-hidden
-            className="absolute inset-x-0 -top-3 text-center font-mono text-[10px] leading-none tabular-nums text-neutral-400"
-          >
-            {count}
-          </span>
-        )}
+          {offer !== null && (
+            <span
+              key={offer}
+              className="mascot-bubble blur-in pointer-events-auto flex w-max max-w-[240px] flex-col gap-2 rounded-2xl bg-neutral-900 px-3 py-2 text-xs leading-4 font-medium text-white shadow-[0_6px_20px_-8px_rgb(0_0_0/0.5)] dark:bg-neutral-100 dark:text-neutral-900"
+            >
+              {lines.offer}
+              <span className="flex gap-1.5">
+                <button
+                  type="button"
+                  data-no-tick
+                  onClick={() => api.current?.tour()}
+                  className="cursor-pointer rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-white/60 dark:bg-neutral-900 dark:text-white"
+                >
+                  {lines.offerYes}
+                </button>
+                <button
+                  type="button"
+                  data-no-tick
+                  onClick={() => api.current?.skip()}
+                  className="cursor-pointer rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60 dark:bg-black/10 dark:text-neutral-900"
+                >
+                  {lines.offerNo}
+                </button>
+              </span>
+            </span>
+          )}
+          {offer === null && speech && (
+            <span
+              key={speech.id}
+              aria-hidden
+              className="mascot-bubble blur-in pointer-events-none w-max max-w-[220px] rounded-2xl bg-neutral-900 px-3 py-1.5 text-xs leading-4 font-medium text-white shadow-[0_6px_20px_-8px_rgb(0_0_0/0.5)] dark:bg-neutral-100 dark:text-neutral-900"
+            >
+              {speech.text}
+            </span>
+          )}
+          {card && (
+            <span
+              key={card.id}
+              aria-hidden
+              className={`mascot-pop absolute -top-4 left-[22px] h-[13px] w-[9px] rounded-[1px] shadow-[0_0_0_1.5px_#262626] ${
+                card.color === "red" ? "bg-[#ef4444]" : "bg-[#facc15]"
+              }`}
+            />
+          )}
+          {mark && !speech && offer === null && (
+            <span
+              aria-hidden
+              className={`absolute inset-x-0 -top-3 text-center font-mono text-[11px] leading-none font-bold text-neutral-500 ${
+                mark === "z" ? "mascot-z" : "mascot-pop"
+              }`}
+            >
+              {mark}
+            </span>
+          )}
+          {count >= 3 && !speech && offer === null && (
+            <span
+              aria-hidden
+              className="absolute inset-x-0 -top-3 text-center font-mono text-[10px] leading-none tabular-nums text-neutral-400"
+            >
+              {count}
+            </span>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
