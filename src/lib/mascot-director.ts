@@ -66,7 +66,7 @@ export function createDirector(d: Deps) {
   let opened = false;
   let offer: "idle" | "shown" | "done" = "idle";
   try {
-    if (localStorage.getItem(OFFER_KEY)) offer = "done";
+    if (sessionStorage.getItem(OFFER_KEY)) offer = "done";
   } catch {}
   let touring = false;
   let token = 0;
@@ -102,7 +102,7 @@ export function createDirector(d: Deps) {
   function showOffer() {
     offer = "shown";
     try {
-      localStorage.setItem(OFFER_KEY, "1");
+      sessionStorage.setItem(OFFER_KEY, "1");
     } catch {}
     d.offer(true);
     d.later(() => {
