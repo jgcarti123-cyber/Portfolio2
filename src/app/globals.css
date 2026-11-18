@@ -771,6 +771,12 @@ dialog.overlay::backdrop { background: transparent; }
 }
 .bp-plane[data-hover] { box-shadow: inset 0 0 0 1.5px var(--accent), 0 30px 50px -30px rgb(0 0 0 / 0.9); }
 .bp-plane[data-quiet] { opacity: 0.4; }
+/* Pointing at a layer pulls it into focus: the others blur and fall back so its parts read clearly. */
+.bp-plane { transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease, box-shadow 0.3s ease, filter 0.35s ease; }
+/* Focus sticks while the pointer stays within that layer's outline, even where another layer sits in front. */
+.bp:has(.bp-plane[data-hover]) .bp-plane:not([data-hover]) { filter: blur(5px); opacity: 0.22; pointer-events: none; }
+.bp:has(.bp-plane[data-hover]) .bp-beam { opacity: 0.1 !important; }
+.bp-plane[data-hover] { opacity: 1; }
 .bp-plane[data-out] { opacity: 0 !important; }
 .bp-plane-model {
   background:
@@ -858,38 +864,36 @@ dialog.overlay::backdrop { background: transparent; }
 }
 @keyframes bp-scrim { from { opacity: 0; } }
 
-/* "Built on" ideas: a calm card that, when pointed at, takes the project's colour and lights its steps one by one. */
-.idea {
-  background: var(--stage);
-  transition: background 0.3s ease, box-shadow 0.3s ease;
+/* "Built on": a segmented picker over a path of steps; a light runs along the path when an idea is picked. */
+.path-seg { background: var(--stage); }
+.path-tab { color: var(--ink-2); transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease; }
+.path-tab:hover { color: var(--ink); }
+.path-tab[data-on] { background: var(--background); color: var(--ink); box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }
+.path { background: var(--stage); }
+.path-in { animation: path-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes path-in { from { opacity: 0; transform: translateY(4px); } }
+.path-rail { background: var(--ink-3); opacity: 0.5; }
+.path-fill { background: var(--accent); transition: width 0.42s cubic-bezier(0.45, 0, 0.55, 1); }
+.path-dot {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 12px 3px color-mix(in srgb, var(--accent) 60%, transparent);
+  transition: left 0.42s cubic-bezier(0.45, 0, 0.55, 1);
 }
-.idea[data-on] {
-  background: color-mix(in srgb, var(--accent) 7%, var(--stage));
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent);
-}
-.idea-step {
+.path-icon {
   background: var(--background);
-  color: var(--ink);
-  transition: background 0.3s ease, color 0.3s ease, transform 0.2s ease;
+  color: var(--ink-3);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
+  transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
 }
-.idea-step:hover { transform: translateY(-1px); }
-.idea-icon { color: var(--ink-2); transition: color 0.3s ease; }
-.idea[data-on] .idea-step { background: color-mix(in srgb, var(--accent) 16%, var(--background)); }
-.idea[data-on] .idea-icon { color: var(--accent); }
-.idea-arrow { color: var(--ink-3); transition: color 0.3s ease; }
-.idea[data-on] .idea-arrow { color: var(--accent); }
-
-/* The idea picker: pills that preview on hover and stay chosen on tap; steps arrive one after another. */
-.idea-pill {
-  background: var(--stage);
-  color: var(--ink);
-  transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+.path-node:hover .path-icon { transform: translateY(-2px); }
+.path-node[data-state="done"] .path-icon { color: var(--accent); }
+.path-node[data-state="now"] .path-icon { background: var(--accent); color: #fff; box-shadow: 0 6px 16px -6px var(--accent); }
+.path-name { color: var(--ink-2); transition: color 0.3s ease; }
+.path-node:not([data-state="next"]) .path-name { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) {
+  .path-in { animation: none; }
+  .path-fill, .path-dot { transition: none; }
 }
-.idea-pill[data-on] { box-shadow: inset 0 0 0 1.5px var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--stage)); }
-.idea-pill[data-pinned] { background: var(--ink); color: var(--background); box-shadow: none; }
-.idea-step-in { animation: idea-step-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
-@keyframes idea-step-in { from { opacity: 0; transform: translateX(-6px); } }
-@media (prefers-reduced-motion: reduce) { .idea-step-in { animation: none; } }
 
 /* Zoom controls on the blueprint. */
 .bp-zoom {

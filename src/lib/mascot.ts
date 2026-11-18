@@ -83,9 +83,6 @@ export const lines = {
     aiva: "AIVA. 25+ engineers rely on it. No big deal.",
     "prim-pets": "200+ vet documents. It knows more about dogs than I do.",
     "swiggy-agent": "Fills your cart, never checks out. Discipline.",
-    "hil-runner": "Tests a car from anywhere. The car doesn’t mind.",
-    "docs-rag": "300 documents read so you don’t have to.",
-    "yaml-generator": "Replaced a vendor tool. Quietly.",
   } as Record<string, string>,
   projectOther: "Good taste.",
 

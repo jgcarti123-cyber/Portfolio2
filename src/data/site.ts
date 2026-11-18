@@ -83,7 +83,7 @@ export const featured: Project[] = [
     tagline: "Concierge AI for pet care",
     icon: "paw",
     year: "2026",
-    role: "Solo build",
+    role: "Personal",
     // Live site timed out when screenshotting — drop a capture at /public/work/prim-pets.png and uncomment.
     // image: "/work/prim-pets.png",
     accent: "#8b5cf6",
@@ -116,51 +116,7 @@ export const featured: Project[] = [
   },
 ];
 
-export const work: Project[] = [
-  aiva,
-  {
-    slug: "hil-runner",
-    title: "Remote HIL Testing",
-    tagline: "Hardware tests from anywhere",
-    icon: "cpu",
-    year: "2025",
-    role: "Tata Motors",
-    accent: "#3b82f6",
-    stack: ["CI/CD", "JIRA API", "Full-stack"],
-    points: [
-      "Platform that lets engineers trigger and run Hardware-in-the-Loop tests remotely through CI/CD — no need to be at the machine.",
-      "Automatically logs JIRA tickets from test runs; 220+ tickets logged to date.",
-    ],
-  },
-  {
-    slug: "docs-rag",
-    title: "Docs RAG Chatbot",
-    tagline: "Answers from 300+ technical docs",
-    icon: "chat",
-    year: "2025",
-    role: "Tata Motors",
-    accent: "#f59e0b",
-    stack: ["RAG", "Vector search", "LLMs"],
-    points: [
-      "Source-grounded chatbot across 300+ technical documents, replacing manual search for the validation and telematics teams.",
-      "One of three AI agents adopted by roughly 20–30 engineers across both teams.",
-    ],
-  },
-  {
-    slug: "yaml-generator",
-    title: "CAN YAML Generator",
-    tagline: "Vehicle features to CAN signals",
-    icon: "code",
-    year: "2025",
-    role: "Tata Motors",
-    accent: "#f43f5e",
-    stack: ["LLMs", "Python", "Automotive CAN"],
-    points: [
-      "AI generator that maps vehicle features to CAN signals, replacing a vendor tool.",
-      "Automatically produces happy-path and edge-case test scenarios.",
-    ],
-  },
-];
+export const work: Project[] = [aiva];
 
 export const experience = [
   {

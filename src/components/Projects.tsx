@@ -63,7 +63,18 @@ function tileRect(slug: string) {
 }
 
 /** A project's tile: calm on the outside, with a small window onto its live blueprint. */
-function Tile({ project, hero = false, className = "" }: { project: Project; hero?: boolean; className?: string }) {
+function Tile({
+  project,
+  hero = false,
+  large = false,
+  className = "",
+}: {
+  project: Project;
+  hero?: boolean;
+  /** A two-row tile without the hero's oversized title, for when a filter leaves two side by side. */
+  large?: boolean;
+  className?: string;
+}) {
   const open = useOpenProject();
   const arch = architectures[project.slug];
   const stats = arch?.stats ?? [];
@@ -73,11 +84,11 @@ function Tile({ project, hero = false, className = "" }: { project: Project; her
     <div
       data-project={project.slug}
       className={`group relative flex overflow-hidden rounded-[22px] bg-[var(--stage)] p-2 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 has-[button:active]:scale-[0.995] ${
-        hero ? "min-h-[300px] flex-col-reverse gap-2 sm:flex-row" : "min-h-[220px] gap-2"
+        hero || large ? "min-h-[300px] flex-col-reverse gap-2 sm:flex-row" : "min-h-[220px] gap-2"
       } ${className}`}
       style={grotesk}
     >
-      <div className={`flex flex-1 flex-col justify-between ${hero ? "p-5 sm:p-6" : "p-4"}`} aria-hidden>
+      <div className={`flex flex-1 flex-col justify-between ${hero || large ? "p-5 sm:p-6" : "p-4"}`} aria-hidden>
         <span className="flex items-center gap-2 text-[12px] text-[var(--ink-2)]">
           <span className="size-1.5 rounded-full" style={{ background: accent }} />
           {project.role ?? "Personal"} · {project.year}
@@ -85,15 +96,15 @@ function Tile({ project, hero = false, className = "" }: { project: Project; her
         <span className="block">
           <span
             className={`block font-medium tracking-[-0.03em] text-[var(--ink)] ${
-              hero ? "text-[clamp(36px,4vw,56px)] leading-[0.95]" : "text-[22px] leading-6"
+              hero ? "text-[clamp(36px,4vw,56px)] leading-[0.95]" : large ? "text-[34px] leading-[1.05]" : "text-[22px] leading-6"
             }`}
           >
             {project.title}
           </span>
-          <span className={`mt-1.5 block text-[var(--ink-2)] ${hero ? "text-[16px]" : "text-[14px] leading-5"}`}>{project.tagline}</span>
-          {hero ? (
+          <span className={`mt-1.5 block text-[var(--ink-2)] ${hero || large ? "text-[16px]" : "text-[14px] leading-5"}`}>{project.tagline}</span>
+          {hero || large ? (
             <span className="mt-7 flex flex-wrap gap-x-7 gap-y-3">
-              {stats.slice(0, 3).map((s) => (
+              {stats.slice(0, hero ? 3 : 2).map((s) => (
                 <span key={s.label} className="block">
                   <span className="block text-[24px] font-medium leading-none tracking-[-0.03em] tabular-nums text-[var(--ink)]">{s.value}</span>
                   <span className="mt-1 block text-[12px] text-[var(--ink-2)]">{s.label}</span>
@@ -115,7 +126,7 @@ function Tile({ project, hero = false, className = "" }: { project: Project; her
           arch={arch}
           accent={accent}
           video={hero ? project.video : undefined}
-          className={`shrink-0 rounded-[16px] ${hero ? "h-[220px] sm:h-auto sm:w-[56%]" : "w-[44%]"}`}
+          className={`shrink-0 rounded-[16px] ${hero ? "h-[220px] sm:h-auto sm:w-[56%]" : large ? "h-[220px] sm:h-auto sm:w-[52%]" : "w-[44%]"}`}
         />
       )}
       <span className="pointer-events-none absolute right-4 top-4 flex size-8 items-center justify-center rounded-full bg-white/90 text-black opacity-0 shadow-sm transition-all duration-300 group-hover:opacity-100 group-hover:rotate-45 group-has-[button:focus-visible]:opacity-100">
@@ -135,23 +146,74 @@ function Tile({ project, hero = false, className = "" }: { project: Project; her
   );
 }
 
-/** A compact grid with AIVA taking the top-left two-by-two. */
-export function ProjectBento({ projects }: { projects: Project[] }) {
+type Filter = "all" | "work" | "personal";
+const FILTERS: { value: Filter; label: string; keep: (p: Project) => boolean }[] = [
+  { value: "all", label: "All", keep: () => true },
+  { value: "work", label: "Tata Motors", keep: isWork },
+  { value: "personal", label: "Personal", keep: (p) => !isWork(p) },
+];
+
+/**
+ * The Work section: the title with a filter beside it, over a compact grid. Showing everything, AIVA takes the
+ * top-left two-by-two; filtered down, each project gets the large tile so the grid keeps its height.
+ */
+export function WorkSection({ projects }: { projects: Project[] }) {
+  const [filter, setFilter] = useState<Filter>("all");
+  const shown = projects.filter(FILTERS.find((f) => f.value === filter)!.keep);
+  const all = filter === "all";
+
   return (
-    <div className="grid gap-3 md:grid-cols-2 lg:auto-rows-[228px] lg:grid-cols-3">
-      {projects.map((p, i) => {
-        const hero = p.slug === "aiva";
-        return (
-          <div
-            key={p.slug}
-            className={`fade-in flex ${hero ? "md:col-span-2 lg:row-span-2" : ""}`}
-            style={{ animationDelay: `${200 + i * 60}ms` }}
-          >
-            <Tile project={p} hero={hero} className="w-full" />
-          </div>
-        );
-      })}
-    </div>
+    <>
+      <div className="fade-in flex flex-wrap items-end gap-x-8 gap-y-4" style={{ animationDelay: "150ms" }}>
+        <h2
+          id="work"
+          data-ground="Featured"
+          className="flex items-start font-[family-name:var(--font-grotesk)] text-[44px] font-medium leading-none tracking-[-0.035em] text-foreground"
+        >
+          Work
+          <sup className="ml-1 mt-1 text-[12px] font-normal tracking-normal text-neutral-400">{shown.length}</sup>
+        </h2>
+        <div role="tablist" aria-label="Filter projects" className="-ml-1 flex gap-1 font-[family-name:var(--font-grotesk)]">
+          {FILTERS.map((f) => {
+            const on = f.value === filter;
+            const count = projects.filter(f.keep).length;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setFilter(f.value)}
+                className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[15px] tracking-[-0.01em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ink-2)] ${
+                  on ? "bg-[var(--stage)] text-[var(--ink)]" : "text-[var(--ink-2)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {f.label}
+                <span className="text-[12px] tabular-nums text-neutral-400">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div
+        key={filter}
+        className={`mt-6 grid gap-3 lg:auto-rows-[228px] ${all ? "md:grid-cols-2 lg:grid-cols-3" : shown.length > 1 ? "lg:grid-cols-2" : ""}`}
+      >
+        {shown.map((p, i) => {
+          const hero = p.slug === "aiva";
+          const large = !all && !hero;
+          return (
+            <div
+              key={p.slug}
+              className={`fade-in flex ${hero || large ? "lg:row-span-2" : ""} ${all && hero ? "md:col-span-2" : ""}`}
+              style={{ animationDelay: `${(all ? 200 : 0) + i * 60}ms` }}
+            >
+              <Tile project={p} hero={hero} large={large} className="w-full" />
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -329,6 +391,181 @@ function ProjectView({
   );
 }
 
+type Arch = (typeof architectures)[string];
+
+/**
+ * "Built on": the ideas behind the build, one at a time. Each is a short path through the stack with a plain
+ * caption under every step. Picking an idea runs a light along its path once; pointing at the path lights the
+ * same parts in the blueprint, and tapping a step lifts its layer out.
+ */
+function IdeaPath({
+  arch,
+  accent,
+  onLight,
+  onOpen,
+}: {
+  arch: Arch;
+  accent: string;
+  onLight: (parts: string[] | null) => void;
+  onOpen: (layer: number, part: number) => void;
+}) {
+  const principles = arch.principles ?? [];
+  const [active, setActive] = useState(0);
+  // How far the light has run along the path; -1 before it starts.
+  const [reach, setReach] = useState(-1);
+  const [focus, setFocus] = useState<number | null>(null);
+  const [inside, setInside] = useState(false);
+  const box = useRef<HTMLElement>(null);
+  const idea = principles[active];
+  const steps = idea.steps;
+  const n = steps.length;
+  const parts = [...new Set(steps.map((s) => s.part))];
+
+  // Run the light once when the section first comes into view, and again whenever another idea is picked.
+  const run = useCallback(
+    (count: number) => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return setReach(count - 1);
+      setReach(0);
+      let i = 0;
+      const id = window.setInterval(() => {
+        i += 1;
+        setReach(i);
+        if (i >= count - 1) window.clearInterval(id);
+      }, 420);
+      return () => window.clearInterval(id);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    let stop: (() => void) | void;
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      stop = run(n);
+    }, { threshold: 0.6 });
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      stop?.();
+    };
+    // Only the first view starts it; picking an idea runs it from the click.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const stopRun = useRef<(() => void) | void>(undefined);
+  useEffect(() => () => stopRun.current?.(), []);
+
+  const pick = (i: number) => {
+    if (i === active) return;
+    stopRun.current?.();
+    setActive(i);
+    setFocus(null);
+    stopRun.current = run(principles[i].steps.length);
+  };
+
+  // While the pointer is over the path, the blueprint lights the parts of whichever idea is showing.
+  const partsKey = parts.join(",");
+  useEffect(() => {
+    onLight(inside ? partsKey.split(",") : null);
+  }, [inside, partsKey, onLight]);
+
+  const part = (key: string) => {
+    const [l, p] = key.split(":").map(Number);
+    return { l, p, kind: arch.layers[l].parts[p].kind, layer: arch.layers[l].name };
+  };
+  const centre = (i: number) => `${((i + 0.5) / n) * 100}%`;
+  const lead = focus ?? Math.max(reach, 0);
+
+  return (
+    <section
+      ref={box}
+      aria-labelledby="ideas-title"
+      style={{ "--accent": accent } as CSSProperties}
+      onMouseEnter={() => setInside(true)}
+      onMouseLeave={() => {
+        setInside(false);
+        setFocus(null);
+      }}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <h3 id="ideas-title" className="sr-only">
+          Built on
+        </h3>
+        <div role="tablist" aria-label="Ideas behind the build" className="path-seg inline-flex gap-0.5 rounded-full p-[3px]">
+          {principles.map((pr, i) => {
+            const on = i === active;
+            const I = partIcon[part(pr.steps[0].part).kind];
+            return (
+              <button
+                key={pr.tab}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => pick(i)}
+                className="path-tab flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full px-3 text-[13px] font-medium tracking-[-0.01em] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-2)]"
+                data-on={on || undefined}
+              >
+                {on && <I size={13} weight="fill" className="text-[var(--accent)]" aria-hidden />}
+                {pr.tab}
+              </button>
+            );
+          })}
+        </div>
+        <p className="hidden font-[family-name:var(--font-inter)] text-[12px] text-[var(--ink-2)] sm:block">Tap a step to open its layer</p>
+      </div>
+
+      <div className="path mt-2 rounded-[18px] px-4 pb-4 pt-3.5 sm:px-5" role="tabpanel" aria-label={idea.tab}>
+        <p key={`h${active}`} className="path-in text-[19px] font-medium leading-6 tracking-[-0.02em] text-[var(--ink)]">
+          {idea.text}
+        </p>
+        <p key={`p${active}`} className="path-in mt-1 font-[family-name:var(--font-inter)] text-[13px] leading-5 text-[var(--ink-2)]">
+          {idea.proof}
+        </p>
+
+        <ol key={`t${active}`} className="relative mt-4 grid" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+          <span aria-hidden className="path-rail absolute top-[19px] h-[2px]" style={{ left: centre(0), right: centre(0) }} />
+          <span
+            aria-hidden
+            className="path-fill absolute top-[19px] h-[2px]"
+            style={{ left: centre(0), width: `calc(${centre(lead)} - ${centre(0)})` }}
+          />
+          <span aria-hidden className="path-dot absolute top-[15px] size-2.5 -translate-x-1/2 rounded-full" style={{ left: centre(lead) }} />
+          {steps.map((st, i) => {
+            const pt = part(st.part);
+            const I = partIcon[pt.kind];
+            const state = i === lead ? "now" : i < lead || (focus === null && reach >= n - 1) ? "done" : "next";
+            return (
+              <li key={i} className="relative z-[1] flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => onOpen(pt.l, pt.p)}
+                  onMouseEnter={() => setFocus(i)}
+                  onFocus={() => setFocus(i)}
+                  onBlur={() => setFocus(null)}
+                  data-state={state}
+                  className="path-node group flex min-w-0 cursor-pointer flex-col items-center px-1 text-center outline-none"
+                  aria-label={`${st.name}: ${st.caption}. Open the ${pt.layer} layer.`}
+                >
+                  <span className="path-icon flex size-10 items-center justify-center rounded-[13px] group-focus-visible:ring-2 group-focus-visible:ring-[var(--ink-2)]">
+                    <I size={19} weight="fill" />
+                  </span>
+                  <span className="path-name mt-2 text-[13px] font-medium leading-4 tracking-[-0.01em]">{st.name}</span>
+                  <span className="mt-0.5 max-w-[118px] font-[family-name:var(--font-inter)] text-[11.5px] leading-[1.35] text-[var(--ink-2)]">
+                    {st.caption}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
 /**
  * Everything about how the project works on one screen: the demo and the blueprint side by side at the same
  * height, and under them the ideas it is built on. Hovering an idea lights the parts it runs through; tapping a
@@ -338,78 +575,18 @@ function Showcase({ project }: { project: Project }) {
   const arch = architectures[project.slug];
   const accent = accentOf(project);
   const [ratio, setRatio] = useState(16 / 9);
-  const [hover, setHover] = useState<number | null>(null);
-  const [pinned, setPinned] = useState<number | null>(null);
+  const [lit, setLit] = useState<string[] | null>(null);
   const blueprint = useRef<BlueprintHandle>(null);
-  const active = hover ?? pinned;
   const principles = arch.principles ?? [];
   const video = project.video;
 
-  const part = (key: string) => {
-    const [l, p] = key.split(":").map(Number);
-    return { l, p, ...arch.layers[l].parts[p] };
-  };
-
-  const shown = active === null ? null : principles[active];
   const ideas = principles.length > 0 && (
-    <section aria-labelledby="ideas-title" style={{ "--accent": accent } as CSSProperties}>
-      <h3 id="ideas-title" className="text-[15px] font-medium tracking-[-0.015em] text-[var(--ink)]">
-        Built on
-      </h3>
-      <div className="mt-2.5 flex flex-wrap gap-1.5" role="tablist" aria-label="Ideas behind the build" onMouseLeave={() => setHover(null)}>
-        {principles.map((pr, i) => (
-          <button
-            key={pr.text}
-            type="button"
-            role="tab"
-            aria-selected={pinned === i}
-            onMouseEnter={() => setHover(i)}
-            onFocus={() => setHover(i)}
-            onBlur={() => setHover(null)}
-            onClick={() => setPinned(pinned === i ? null : i)}
-            className="idea-pill h-9 cursor-pointer rounded-full px-3.5 text-[14px] tracking-[-0.01em] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-2)]"
-            data-on={active === i || undefined}
-            data-pinned={pinned === i || undefined}
-          >
-            {pr.text}
-          </button>
-        ))}
-      </div>
-      <div className="idea mt-2 min-h-[124px] rounded-[18px] px-4 py-3.5" data-on={shown ? true : undefined} aria-live="polite">
-        {shown ? (
-          <>
-            <p className="font-[family-name:var(--font-inter)] text-[14px] leading-[1.5] text-[var(--ink)]">{shown.proof}</p>
-            <p className="mt-3 font-[family-name:var(--font-inter)] text-[12px] text-[var(--ink-2)]">How it runs, step by step</p>
-            <ol className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-1.5">
-              {shown.parts.map((k, idx) => {
-                const pt = part(k);
-                const I = partIcon[pt.kind];
-                return (
-                  <li key={k} className="flex items-center gap-1">
-                    {idx > 0 && <ArrowRight size={10} className="idea-arrow" aria-hidden />}
-                    <button
-                      type="button"
-                      onClick={() => blueprint.current?.openLayer(pt.l, pt.p)}
-                      className="idea-step idea-step-in flex h-7 cursor-pointer items-center gap-1.5 rounded-full px-2.5 font-[family-name:var(--font-inter)] text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-2)]"
-                      style={{ animationDelay: `${idx * 70}ms` }}
-                      aria-label={`Open ${pt.label} in the ${arch.layers[pt.l].name} layer`}
-                    >
-                      <I size={12} weight="fill" className="idea-icon" />
-                      {pt.label}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </>
-        ) : (
-          <p className="font-[family-name:var(--font-inter)] text-[14px] leading-[1.5] text-[var(--ink-2)]">
-            {principles.length === 3 ? "Three" : principles.length} ideas hold this system together. Pick one to see the exact path it
-            takes through the stack, then tap any step to open it.
-          </p>
-        )}
-      </div>
-    </section>
+    <IdeaPath
+      arch={arch}
+      accent={accent}
+      onLight={setLit}
+      onOpen={(l, p) => blueprint.current?.openLayer(l, p)}
+    />
   );
 
   const stage = (
@@ -427,7 +604,7 @@ function Showcase({ project }: { project: Project }) {
           accent={accent}
           video={video}
           title={project.title}
-          highlight={active === null ? null : principles[active]?.parts}
+          highlight={lit}
           stageClass={video ? "h-[420px] lg:h-full" : "h-[420px] lg:h-[520px]"}
         />
       </div>

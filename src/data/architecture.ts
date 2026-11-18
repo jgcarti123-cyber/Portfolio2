@@ -34,7 +34,11 @@ export type Arch = {
    * The ideas the build rests on. Hovering one lights the parts it lives in (`parts`, as "layer:part" indexes),
    * and `proof` is the one line that backs it up.
    */
-  principles?: { text: string; proof: string; parts: string[] }[];
+  /**
+   * The ideas the build rests on, each told as a short path through the stack. `part` is "layer:part"; `name` and
+   * `caption` are the plain words shown under that step.
+   */
+  principles?: { tab: string; text: string; proof: string; steps: { part: string; name: string; caption: string }[] }[];
 };
 
 export const architectures: Record<string, Arch> = {
@@ -48,9 +52,41 @@ export const architectures: Record<string, Arch> = {
     ],
     footnote: "Underneath it all: 2,600+ tests and golden replays on every prompt change.",
     principles: [
-      { text: "The model proposes. Code decides.", proof: "Every call passes the harness and a read-only allowlist; people sign off at four gates.", parts: ["2:0", "1:0", "1:2", "1:3", "1:1"] },
-      { text: "One call builds the whole context.", proof: "Requirements, signals and tickets arrive together in a single turn.", parts: ["3:0", "4:0", "4:1", "4:2"] },
-      { text: "Every prompt change replays the golden set.", proof: "2,600+ tests and recorded runs catch a regression before it ships.", parts: ["1:0", "2:0", "3:1"] },
+      {
+        tab: "Safety",
+        text: "The AI suggests. Code decides.",
+        proof: "Every call passes the harness and a read-only allowlist; people sign off at four gates.",
+        steps: [
+          { part: "2:0", name: "Claude drafts", caption: "Suggests a test case" },
+          { part: "1:0", name: "Harness", caption: "Logs and checks every step" },
+          { part: "1:2", name: "Allowlist", caption: "Read-only tools only" },
+          { part: "1:3", name: "Write guard", caption: "No writes to real data" },
+          { part: "1:1", name: "Engineer", caption: "Signs off at 4 gates" },
+        ],
+      },
+      {
+        tab: "Context",
+        text: "All the facts in one call.",
+        proof: "Requirements, signals and tickets arrive together in a single turn.",
+        steps: [
+          { part: "3:0", name: "Context builder", caption: "One call per turn" },
+          { part: "4:0", name: "Requirements", caption: "700 requirement chunks" },
+          { part: "4:1", name: "Signals", caption: "3,200+ real scenarios" },
+          { part: "4:2", name: "Jira + Confluence", caption: "Tickets via Rovo MCP" },
+          { part: "2:0", name: "Claude", caption: "Drafts with every fact in hand" },
+        ],
+      },
+      {
+        tab: "Testing",
+        text: "Retested on every change.",
+        proof: "2,600+ tests and recorded runs catch a regression before it ships.",
+        steps: [
+          { part: "2:0", name: "Prompt change", caption: "Someone edits a prompt" },
+          { part: "1:0", name: "Golden replay", caption: "Recorded runs play again" },
+          { part: "3:1", name: "Tool contracts", caption: "All 35+ tools checked" },
+          { part: "1:1", name: "Release", caption: "Only if nothing regressed" },
+        ],
+      },
     ],
     layers: [
       {
@@ -98,9 +134,37 @@ export const architectures: Record<string, Arch> = {
 
   "prim-pets": {
     principles: [
-      { text: "Answers come from documents, not memory.", proof: "Hybrid search finds the passage; the model only rewrites it.", parts: ["2:0", "3:0", "4:0"] },
-      { text: "Every pet keeps its own history.", proof: "Memory is stored per pet and read on every chat.", parts: ["3:1", "0:0"] },
-      { text: "Hardened in production, not in theory.", proof: "Fixed live: stored XSS, rate limits, an out-of-memory crash.", parts: ["1:0", "1:1"] },
+      {
+        tab: "Grounded",
+        text: "Answers come from documents, not memory.",
+        proof: "Hybrid search finds the passage; the model only rewrites it.",
+        steps: [
+          { part: "0:0", name: "Owner asks", caption: "A question about their pet" },
+          { part: "3:0", name: "Hybrid search", caption: "Vector and keyword together" },
+          { part: "4:0", name: "Vet knowledge", caption: "200+ veterinary documents" },
+          { part: "2:0", name: "LLM", caption: "Rewrites what it found" },
+        ],
+      },
+      {
+        tab: "Memory",
+        text: "Every pet keeps its own history.",
+        proof: "Memory is stored per pet and read on every chat.",
+        steps: [
+          { part: "0:0", name: "Owner chats", caption: "Mentions their pet" },
+          { part: "3:1", name: "Pet memory", caption: "Recalls past notes" },
+          { part: "2:0", name: "LLM", caption: "Answers with that history" },
+        ],
+      },
+      {
+        tab: "Hardening",
+        text: "Hardened in production, not in theory.",
+        proof: "Fixed live: stored XSS, rate limits, an out-of-memory crash.",
+        steps: [
+          { part: "1:1", name: "Safe output", caption: "Fixed a stored-XSS bug" },
+          { part: "1:0", name: "Rate limiting", caption: "Stops floods per user" },
+          { part: "0:0", name: "Live on Render", caption: "Survived an out-of-memory crash" },
+        ],
+      },
     ],
     stats: [
       { value: "200+", label: "veterinary documents" },
@@ -146,9 +210,38 @@ export const architectures: Record<string, Arch> = {
 
   "swiggy-agent": {
     principles: [
-      { text: "Rules first, model only when needed.", proof: "The router answers common requests itself: 129s down to about 2s.", parts: ["2:0", "3:0"] },
-      { text: "It fills the cart. You place the order.", proof: "Checkout is out of the agent’s reach, and retries can’t double an item.", parts: ["1:0", "1:1", "4:0"] },
-      { text: "A photo is enough to start.", proof: "Vision turns a dish or a handwritten list into a cart.", parts: ["3:0", "3:1", "0:0"] },
+      {
+        tab: "Speed",
+        text: "Rules first, model only when needed.",
+        proof: "The router answers common requests itself: 129s down to about 2s.",
+        steps: [
+          { part: "0:0", name: "You ask", caption: "“Add milk and eggs”" },
+          { part: "2:0", name: "Router", caption: "Handles common requests by rules" },
+          { part: "3:0", name: "Llama-4 Scout", caption: "Only for the hard ones" },
+        ],
+      },
+      {
+        tab: "Safety",
+        text: "It fills the cart. You place the order.",
+        proof: "Checkout is out of the agent’s reach, and retries can’t double an item.",
+        steps: [
+          { part: "4:0", name: "Swiggy MCP", caption: "Adds items to your cart" },
+          { part: "1:1", name: "Safe retries", caption: "Never doubles an item" },
+          { part: "1:0", name: "No checkout", caption: "Out of the agent’s reach" },
+          { part: "0:0", name: "You", caption: "Review and place the order" },
+        ],
+      },
+      {
+        tab: "Vision",
+        text: "A photo is enough to start.",
+        proof: "Vision turns a dish or a handwritten list into a cart.",
+        steps: [
+          { part: "0:0", name: "You snap", caption: "A dish or a handwritten list" },
+          { part: "3:0", name: "Llama-4 Scout", caption: "Reads the photo" },
+          { part: "3:1", name: "Recipe engine", caption: "Works out the ingredients" },
+          { part: "4:0", name: "Swiggy MCP", caption: "Fills the cart" },
+        ],
+      },
     ],
     stats: [
       { value: "98%", label: "less latency" },
@@ -190,119 +283,6 @@ export const architectures: Record<string, Arch> = {
           { label: "Swiggy MCP", sub: "Food + Instamart", kind: "tool", detail: "Swiggy's official MCP servers for the real Food and Instamart catalogues." },
           { label: "Scheduler", sub: "SQLite", kind: "store", detail: "Saves repeat orders and reminders in SQLite." },
         ],
-      },
-    ],
-  },
-
-  "hil-runner": {
-    principles: [
-      { text: "Real hardware, reachable from anywhere.", proof: "The dashboard drives a physical rig over the pipeline.", parts: ["0:0", "2:0"] },
-      { text: "Every run is queued and recorded.", proof: "CI/CD makes each run repeatable, with results kept.", parts: ["1:0", "3:0"] },
-      { text: "Failures file their own tickets.", proof: "220+ Jira tickets raised with logs attached, no copy-paste.", parts: ["3:1"] },
-    ],
-    stats: [{ value: "220+", label: "Jira tickets logged" }],
-    layers: [
-      {
-        name: "Interface",
-        line: "Pick a test, start it, watch it run, from anywhere.",
-        parts: [{ label: "Web dashboard", sub: "Full-stack", kind: "actor", detail: "Pick a test, start it and watch it run on real hardware from anywhere." }],
-      },
-      {
-        name: "Pipeline",
-        line: "Every run goes through CI/CD: queued, repeatable, recorded.",
-        parts: [{ label: "CI/CD", sub: "Queues the run", kind: "service", detail: "Queues every run so tests on the rig are repeatable and recorded." }],
-      },
-      {
-        name: "Hardware",
-        line: "The hardware-in-the-loop bench the tests actually run on.",
-        model: true,
-        parts: [{ label: "HIL rig", sub: "Real hardware", kind: "hardware", detail: "The hardware-in-the-loop bench: real vehicle electronics the tests run against." }],
-      },
-      {
-        name: "Reporting",
-        line: "Failures become Jira tickets on their own: 220+ so far.",
-        parts: [
-          { label: "Results", sub: "Logs + verdicts", kind: "output", detail: "Logs and a pass or fail verdict for every run, kept for later comparison." },
-          { label: "Jira API", sub: "220+ tickets", kind: "output", detail: "Failures become Jira tickets on their own, with logs attached. 220+ so far." },
-        ],
-      },
-    ],
-  },
-
-  "docs-rag": {
-    principles: [
-      { text: "Answer only from what was retrieved.", proof: "The model sees just the top passages, nothing else.", parts: ["1:0", "2:0"] },
-      { text: "Every answer shows its source.", proof: "Each line links back to the document it came from.", parts: ["1:0", "4:0"] },
-      { text: "Embed once, search by meaning.", proof: "Documents are indexed a single time and searched by vector.", parts: ["3:0", "3:1"] },
-    ],
-    stats: [
-      { value: "300+", label: "technical documents" },
-      { value: "20–30", label: "engineers, 2 teams" },
-    ],
-    layers: [
-      {
-        name: "Interface",
-        line: "Validation and telematics engineers ask in plain language.",
-        parts: [{ label: "Chat", sub: "2 teams", kind: "actor", detail: "Validation and telematics engineers ask in plain language instead of searching manuals." }],
-      },
-      {
-        name: "Model",
-        line: "Answers only from the retrieved passages, with sources.",
-        model: true,
-        parts: [{ label: "LLM", sub: "Cites its sources", kind: "model", detail: "Answers only from the passages it was given and shows which document each line came from." }],
-      },
-      {
-        name: "Retrieval",
-        line: "Finds the passages that answer the question.",
-        parts: [{ label: "Retriever", sub: "Top passages", kind: "tool", detail: "Finds the few passages most likely to answer the question." }],
-      },
-      {
-        name: "Index",
-        line: "Every passage embedded once and searchable by meaning.",
-        parts: [
-          { label: "Chunk + embed", sub: "Ingestion", kind: "service", detail: "Splits every document into passages and turns each into a vector, once." },
-          { label: "Vector index", sub: "Passages", kind: "store", detail: "Stores the passages so they can be searched by meaning, not just keywords." },
-        ],
-      },
-      {
-        name: "Knowledge",
-        line: "The specs and manuals people used to search by hand.",
-        parts: [{ label: "Technical docs", sub: "300+ documents", kind: "source", detail: "300+ specs and manuals that people used to search by hand." }],
-      },
-    ],
-  },
-
-  "yaml-generator": {
-    principles: [
-      { text: "Every mapping points at a real signal.", proof: "The CAN database grounds each feature-to-signal match.", parts: ["1:0", "2:0"] },
-      { text: "Edge cases are generated, not forgotten.", proof: "Scenarios cover the unhappy paths too.", parts: ["0:1"] },
-      { text: "Replace the vendor tool, keep the format.", proof: "Output matches the YAML the old tool produced.", parts: ["0:0"] },
-    ],
-    stats: [{ value: "1", label: "vendor tool replaced" }],
-    layers: [
-      {
-        name: "Output",
-        line: "YAML config plus happy-path and edge-case scenarios, ready to run.",
-        parts: [
-          { label: "YAML config", sub: "Replaces a vendor tool", kind: "output", detail: "A ready-to-run test config, in the same format the old vendor tool produced." },
-          { label: "Scenarios", sub: "Happy path + edge", kind: "tool", detail: "Happy-path and edge-case scenarios generated alongside the config." },
-        ],
-      },
-      {
-        name: "Model",
-        line: "Maps a vehicle feature to the CAN signals behind it.",
-        model: true,
-        parts: [{ label: "LLM mapper", sub: "Feature → signals", kind: "model", detail: "Reads a feature description and maps it to the CAN signals behind it." }],
-      },
-      {
-        name: "Grounding",
-        line: "Real signal definitions, so every mapping points at a signal that exists.",
-        parts: [{ label: "CAN database", sub: "Signal definitions", kind: "store", detail: "Real signal definitions, so every mapping points at a signal that exists." }],
-      },
-      {
-        name: "Input",
-        line: "The vehicle feature to be tested, as written.",
-        parts: [{ label: "Feature spec", sub: "Python pipeline", kind: "source", detail: "The vehicle feature to test, written the way engineers already write it." }],
       },
     ],
   },

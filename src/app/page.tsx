@@ -7,7 +7,7 @@ import { Icon } from "@/components/Icon";
 import { InlineLink } from "@/components/InlineLink";
 import { RotatingText } from "@/components/RotatingText";
 import { ListItemBody, rowClass, staticRowClass } from "@/components/ListItem";
-import { ProjectBento, ProjectsProvider } from "@/components/Projects";
+import { ProjectsProvider, WorkSection } from "@/components/Projects";
 import { delay, Section, stagger } from "@/components/Section";
 import { connect, experience, featured as featuredData, profile, work as workData } from "@/data/site";
 import { withGallery } from "@/lib/gallery";
@@ -16,7 +16,7 @@ export const revalidate = 3600;
 
 const STEP = 25;
 /** Bento order: AIVA leads, then sizes alternate so the grid fills (see SPOTS in Projects.tsx). */
-const ORDER = ["aiva", "prim-pets", "swiggy-agent", "hil-runner", "docs-rag", "yaml-generator"];
+const ORDER = ["aiva", "prim-pets", "swiggy-agent"];
 /** What "Lately:" cycles through under the headline. */
 const LATELY = [
   "Harness engineering",
@@ -76,19 +76,8 @@ export default function Home() {
           </div>
 
           {/* Projects: a full-width bento */}
-          <section className="mx-auto mt-20 max-w-[1440px] px-5 sm:px-8" aria-labelledby="work">
-            <h2
-              id="work"
-              data-ground="Featured"
-              className="fade-in flex items-start font-[family-name:var(--font-grotesk)] text-[44px] font-medium leading-none tracking-[-0.035em] text-foreground"
-              style={delay(150)}
-            >
-              Work
-              <sup className="ml-1 mt-1 text-[12px] font-normal tracking-normal text-neutral-400">{projects.length}</sup>
-            </h2>
-            <div className="mt-6">
-              <ProjectBento projects={projects} />
-            </div>
+          <section className="mx-auto mt-12 max-w-[1440px] px-5 sm:px-8" aria-labelledby="work">
+            <WorkSection projects={projects} />
           </section>
 
           {/* Experience and Connect, as before */}

@@ -118,7 +118,7 @@ function Beam({
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute left-0 top-0"
+      className="bp-beam pointer-events-none absolute left-0 top-0"
       style={{
         width: len,
         height: 0,
