@@ -1,43 +1,46 @@
+import Image from "next/image";
 import Link from "next/link";
 import { profile } from "@/data/site";
 import { Clock } from "./Clock";
 import { OnlineDot } from "./OnlineDot";
-import { RotatingText } from "./RotatingText";
-import { Toolbar, type ActivePage } from "./Toolbar";
+import { SoundToggle, Toolbar, type ActivePage } from "./Toolbar";
 
-/** Name + subtitle. Hovering the name collapses it to the initials "J G". */
-export function NameBlock({ subtitle }: { subtitle: string | string[] }) {
-  const items = Array.isArray(subtitle) ? subtitle : [subtitle];
+/**
+ * The top quarter of every page: John's name stacked like a logo, with the pages as huge words starting right
+ * beside it and running off the window edge, all in white over a photo of the sky. Clock and sound sit in the
+ * top-right corner. On phones the name sits above the words instead.
+ */
+export function GiantHeader({ active }: { active: ActivePage }) {
   return (
-    <div className="fade-in mb-6 desktop:mb-8">
-      <Link href="/" className="block w-fit rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-neutral-300">
-        <h1 className="group/name w-fit select-none text-sm font-semibold leading-5 text-foreground">
-          <span>J</span>
-          <span className="transition-colors duration-150 group-hover/name:text-neutral-300 dark:group-hover/name:text-neutral-700">
-            ohn
-          </span>{" "}
-          <span>G</span>
-          <span className="transition-colors duration-150 group-hover/name:text-neutral-300 dark:group-hover/name:text-neutral-700">
-            eorge
-          </span>
-          <OnlineDot />
-        </h1>
-      </Link>
-      <p className="text-sm leading-5 text-neutral-400 dark:text-neutral-600">
-        <RotatingText items={items} />
-      </p>
-    </div>
-  );
-}
-
-/** Toolbar + live clock. Fades in on page hover on desktop, always visible on mobile. */
-export function TopBar({ active, className = "" }: { active: ActivePage; className?: string }) {
-  return (
-    <div className={`flex items-center justify-between ${className}`}>
-      <div className="transition-opacity duration-300 desktop:opacity-0 desktop:group-hover/page:opacity-100 desktop:group-focus-within/page:opacity-100">
-        <Toolbar active={active} />
+    <header className="giant-head on-photo dark fade-in relative isolate overflow-hidden px-5 pt-5 sm:px-8 md:pt-7">
+      {/* The sky behind the name and the page words. The header runs in dark colours so its text sits in white. */}
+      <Image src="/header-sky.jpg" alt="" fill priority quality={90} sizes="100vw" className="-z-10 object-cover" />
+      <div className="absolute right-5 top-5 flex items-center gap-3 sm:right-8 md:top-7">
+        <SoundToggle />
+        <Clock timeZone={profile.timeZone} />
       </div>
-      <Clock timeZone={profile.timeZone} />
-    </div>
+      <div className="flex flex-col gap-6 md:mt-10 md:flex-row md:items-start md:gap-[2.2vw]">
+        <Link
+          href="/"
+          className="group/name block shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 md:pt-[1.6vw]"
+        >
+          <h1 className="select-none font-[family-name:var(--font-grotesk)] text-[22px] font-medium leading-[0.95] tracking-[-0.03em] text-foreground md:text-[clamp(22px,2.3vw,36px)]">
+            J
+            <span className="transition-colors duration-150 group-hover/name:text-white/35">ohn</span>
+            <br className="hidden md:block" /> G
+            <span className="transition-colors duration-150 group-hover/name:text-white/35">eorge</span>
+            <OnlineDot />
+          </h1>
+          <p className="mt-3 hidden text-[13px] leading-4 text-white/70 md:block">
+            AI Engineer
+            <br />
+            Tata Motors
+          </p>
+        </Link>
+        <div className="min-w-0 flex-1">
+          <Toolbar active={active} />
+        </div>
+      </div>
+    </header>
   );
 }

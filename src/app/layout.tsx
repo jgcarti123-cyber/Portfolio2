@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Host_Grotesk, Inter } from "next/font/google";
 import { ClickSound } from "@/components/ClickSound";
 import { EdgeFades } from "@/components/EdgeFades";
 import { Mascot } from "@/components/Mascot";
@@ -11,6 +11,14 @@ import "./globals.css";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+// Only the big-word tabs and the segmented control use this (after things.bharadwhat.com).
+const grotesk = Host_Grotesk({
+  subsets: ["latin"],
+  weight: "variable",
+  variable: "--font-grotesk",
   display: "swap",
 });
 
@@ -37,7 +45,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${grotesk.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

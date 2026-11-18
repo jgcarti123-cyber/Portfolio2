@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { FileText } from "@phosphor-icons/react/dist/ssr";
-import { NameBlock, TopBar } from "@/components/Header";
+import { GiantHeader } from "@/components/Header";
 import { delay, SectionLabel, stagger } from "@/components/Section";
 import { skillGroups, type Skill } from "@/data/skills";
 
@@ -60,11 +60,10 @@ export default function SkillsPage() {
 
   return (
     <div className="group/page">
-      <main className="mx-auto max-w-[900px] px-5 pb-32 pt-12 sm:px-8">
+      <GiantHeader active="skills" />
+      <main className="mx-auto max-w-[900px] px-5 pb-32 pt-10 sm:px-8">
         <div className="flex flex-col desktop:mx-auto desktop:grid desktop:w-fit desktop:grid-cols-[320px_320px] desktop:gap-x-16">
           <div>
-            <NameBlock subtitle="Curated Skills" />
-            <TopBar active="skills" className="fade-in -mt-2 mb-8 desktop:hidden" />
             <p
               className="fade-in mb-10 text-sm leading-5 text-neutral-500 dark:text-neutral-400"
               style={delay(50)}
@@ -82,7 +81,6 @@ export default function SkillsPage() {
           </div>
 
           <div>
-            <TopBar active="skills" className="fade-in mb-8 hidden pt-5 desktop:flex" />
             {column("right")}
           </div>
         </div>

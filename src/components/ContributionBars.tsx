@@ -142,7 +142,7 @@ function Legend() {
 
 /** 30 days as bars; longer ranges as a GitHub-style calendar so the whole pattern reads at a glance. */
 export function ContributionBars({ days, username }: { days: Day[] | null; username: string }) {
-  const [range, setRange] = useState<Range>(30);
+  const [range, setRange] = useState<Range>("all");
   const [hover, setHover] = useState<Day | null>(null);
 
   const shown = useMemo(() => (days?.length ? select(days, range) : null), [days, range]);

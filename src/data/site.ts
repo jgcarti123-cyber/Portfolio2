@@ -125,6 +125,7 @@ export const work: Project[] = [
     icon: "cpu",
     year: "2025",
     role: "Tata Motors",
+    accent: "#3b82f6",
     stack: ["CI/CD", "JIRA API", "Full-stack"],
     points: [
       "Platform that lets engineers trigger and run Hardware-in-the-Loop tests remotely through CI/CD — no need to be at the machine.",
@@ -138,6 +139,7 @@ export const work: Project[] = [
     icon: "chat",
     year: "2025",
     role: "Tata Motors",
+    accent: "#f59e0b",
     stack: ["RAG", "Vector search", "LLMs"],
     points: [
       "Source-grounded chatbot across 300+ technical documents, replacing manual search for the validation and telematics teams.",
@@ -151,6 +153,7 @@ export const work: Project[] = [
     icon: "code",
     year: "2025",
     role: "Tata Motors",
+    accent: "#f43f5e",
     stack: ["LLMs", "Python", "Automotive CAN"],
     points: [
       "AI generator that maps vehicle features to CAN signals, replacing a vendor tool.",

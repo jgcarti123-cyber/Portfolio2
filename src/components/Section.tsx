@@ -22,7 +22,7 @@ export function SectionLabel({
 }) {
   return (
     <div className="fade-in flex items-center gap-2" style={style}>
-      <h2 className="shrink-0 text-xs font-semibold text-neutral-400 dark:text-neutral-600">
+      <h2 className="shrink-0 font-[family-name:var(--font-grotesk)] text-[22px] font-medium leading-none tracking-[-0.025em] text-foreground">
         {children}
       </h2>
       <div data-ground={typeof children === "string" ? children : ""} className="flex-1 border-t border-dotted border-neutral-200 dark:border-neutral-800" />

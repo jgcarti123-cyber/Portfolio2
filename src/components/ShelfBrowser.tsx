@@ -24,7 +24,9 @@ import { shelfGroups, type ShelfIcon, type ShelfLink, type ShelfList } from "@/d
 import { useHydrated } from "@/lib/hooks";
 import { tellMascot } from "@/lib/mascot";
 import { PlaylistCard } from "./PlaylistCard";
+import { BigTabs } from "./BigTabs";
 import { delay, SectionLabel } from "./Section";
+import { Segmented } from "./Segmented";
 
 const icons: Record<ShelfIcon, PhosphorIcon> = {
   robot: Robot,
@@ -254,17 +256,10 @@ function buildEntries(lists: ShelfList[]): Entry[] {
 
 const countOf = (g: Group) => g.lists.reduce((n, l) => n + l.links.length, 0);
 
-const rowBase =
-  "text-sm transition-all duration-150 active:scale-[0.98]";
-const rowOn = "bg-neutral-100 text-foreground dark:bg-neutral-900";
-const rowOff =
-  "text-neutral-500 hover:bg-neutral-50 hover:text-foreground dark:text-neutral-400 dark:hover:bg-neutral-900/60";
-
 export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
   const hydrated = useHydrated();
   const [picked, setActive] = useState<string | null>(null);
   const [pickedView, setView] = useState<View | null>(null);
-  const [expandedBy, setExpandedBy] = useState<Record<string, boolean>>({});
   const [pickerOpen, setPickerOpen] = useState(true); // phones: every list as a tile, until one is picked
 
   const entries = useMemo(() => buildEntries(lists), [lists]);
@@ -285,16 +280,6 @@ export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
     const url = new URL(window.location.href);
     url.searchParams.set("list", slug);
     window.history.replaceState(null, "", url);
-  }
-
-  // A group heading only folds and unfolds its lists; the visitor picks one from underneath.
-  function toggleGroup(g: Group) {
-    setExpandedBy((m) => ({ ...m, [g.slug]: !isExpanded(g) }));
-  }
-
-  // Open by default while one of its lists is showing.
-  function isExpanded(g: Group) {
-    return expandedBy[g.slug] ?? g.lists.some((l) => l.slug === activeSlug);
   }
 
   function changeView(v: View) {
@@ -399,90 +384,27 @@ export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
           </div>
         </div>
 
-        {/* Desktop: vertical list with counts; groups fold open to their lists */}
-        <ul className="mt-4 hidden flex-col gap-0.5 desktop:flex">
-          {entries.map((e, i) => {
-            if (e.kind === "list") {
-              const I = icons[e.list.icon];
-              const on = e.list.slug === activeSlug;
-              return (
-                <li key={e.list.slug} className="fade-in" style={delay(125 + i * 20)}>
-                  <button
-                    type="button"
-                    data-slug={e.list.slug}
-                    onClick={() => select(e.list.slug)}
-                    aria-current={on ? "true" : undefined}
-                    className={`group -mx-3 flex w-[calc(100%+1.5rem)] cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-left ${rowBase} ${on ? rowOn : rowOff}`}
-                  >
-                    <I
-                      size={16}
-                      weight={on ? "fill" : "bold"}
-                      className={on ? "text-neutral-700 dark:text-neutral-300" : "text-neutral-400 dark:text-neutral-600"}
-                    />
-                    <span className="flex-1 font-medium">{e.list.label}</span>
-                    <span className="text-xs tabular-nums text-neutral-400 dark:text-neutral-600">{e.list.links.length}</span>
-                  </button>
-                </li>
-              );
+        {/* Desktop: the lists as big words with counts; a group is one word and its lists sit above the cards */}
+        <div className="mt-4 hidden desktop:block">
+          <BigTabs
+            label="Lists"
+            size="26px"
+            scroll={false}
+            active={
+              entries.find((e): e is Group => e.kind === "group" && e.lists.some((l) => l.slug === activeSlug))?.slug ??
+              activeSlug
             }
-
-            const I = icons[e.icon];
-            const open = isExpanded(e);
-            const inside = e.lists.some((l) => l.slug === activeSlug);
-            return (
-              <li key={e.slug} className="fade-in" style={delay(125 + i * 20)}>
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(e)}
-                  aria-expanded={open}
-                  className={`group -mx-3 flex w-[calc(100%+1.5rem)] cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-left ${rowBase} ${
-                    inside ? "text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-900/60" : rowOff
-                  }`}
-                >
-                  <I
-                    size={16}
-                    weight={inside ? "fill" : "bold"}
-                    className={inside ? "text-neutral-700 dark:text-neutral-300" : "text-neutral-400 dark:text-neutral-600"}
-                  />
-                  <span className="flex-1 font-medium">{e.name}</span>
-                  <CaretDown
-                    size={12}
-                    weight="bold"
-                    className={`text-neutral-400 transition-transform duration-200 dark:text-neutral-600 ${open ? "" : "-rotate-90"}`}
-                  />
-                  <span className="w-4 text-right text-xs tabular-nums text-neutral-400 dark:text-neutral-600">{countOf(e)}</span>
-                </button>
-
-                {/* Folds with a grid-rows transition; inert keeps hidden rows out of the tab order. */}
-                <div
-                  className={`grid transition-[grid-template-rows] duration-200 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
-                  inert={!open}
-                >
-                  <ul className="min-h-0 overflow-hidden">
-                    <li className="ml-2 mt-0.5 flex flex-col gap-0.5 border-l border-neutral-200 pl-2 dark:border-neutral-800">
-                      {e.lists.map((l) => {
-                        const childOn = l.slug === activeSlug;
-                        return (
-                          <button
-                            key={l.slug}
-                            type="button"
-                            data-slug={l.slug}
-                            onClick={() => select(l.slug)}
-                            aria-current={childOn ? "true" : undefined}
-                            className={`flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-1.5 text-left ${rowBase} ${childOn ? rowOn : rowOff}`}
-                          >
-                            <span className="flex-1 truncate font-medium">{l.label}</span>
-                            <span className="text-xs tabular-nums text-neutral-400 dark:text-neutral-600">{l.links.length}</span>
-                          </button>
-                        );
-                      })}
-                    </li>
-                  </ul>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+            onSelect={(key) => {
+              const g = entries.find((e): e is Group => e.kind === "group" && e.slug === key);
+              select(g ? g.lists[0].slug : key);
+            }}
+            items={entries.map((e) =>
+              e.kind === "list"
+                ? { key: e.list.slug, label: e.list.label, count: e.list.links.length, data: { "data-slug": e.list.slug } }
+                : { key: e.slug, label: e.name, count: countOf(e), data: { "data-slug": e.slug } },
+            )}
+          />
+        </div>
       </nav>
 
       {/* Links */}
@@ -490,6 +412,19 @@ export function ShelfBrowser({ lists }: { lists: ShelfList[] }) {
         <SectionLabel style={delay(150)} right={viewToggle}>
           {current.group ? `${current.group} · ${current.label}` : current.label}
         </SectionLabel>
+        {current.group && (() => {
+          const g = entries.find((e): e is Group => e.kind === "group" && e.name === current.group);
+          return g ? (
+            <div className="mt-4 hidden desktop:block">
+            <Segmented
+              label={g.name}
+              value={activeSlug}
+              onChange={select}
+              options={g.lists.map((l) => ({ key: l.slug, label: l.label, count: l.links.length, data: { "data-slug": l.slug } }))}
+            />
+            </div>
+          ) : null;
+        })()}
         <div key={`${current.slug}-${view}`} className={view === "grid" ? "mt-5" : "mt-4"}>
           <Links links={current.links} view={view} offset={view === "grid" ? 150 : 100} />
         </div>
