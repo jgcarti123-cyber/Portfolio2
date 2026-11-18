@@ -11,12 +11,11 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, X } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, ArrowRight, ArrowUpRight } from "@phosphor-icons/react/dist/ssr";
 import { architectures } from "@/data/architecture";
 import type { Project } from "@/data/site";
 import { tellMascot } from "@/lib/mascot";
-import { Blueprint } from "./Blueprint";
-import { Segmented } from "./Segmented";
+import { Blueprint, partIcon, type BlueprintHandle } from "./Blueprint";
 
 type Opener = (slug: string, from?: DOMRect) => void;
 const OpenProject = createContext<Opener>(() => {});
@@ -181,7 +180,6 @@ function ProjectView({
   const dialog = useRef<HTMLDialogElement>(null);
   const pane = useRef<HTMLDivElement>(null);
   const closing = useRef(false);
-  const [tab, setTab] = useState<"layers" | "demo">("layers");
 
   const arch = architectures[project.slug];
 
@@ -224,11 +222,16 @@ function ProjectView({
 
   function switchTo(p: Project) {
     pane.current?.scrollTo({ top: 0 });
-    setTab("layers");
     onSwitch(p);
   }
 
-  const next = projects[(projects.findIndex((p) => p.slug === project.slug) + 1) % projects.length];
+  const at = projects.findIndex((p) => p.slug === project.slug);
+  const next = projects[(at + 1) % projects.length];
+  const prev = projects[(at - 1 + projects.length) % projects.length];
+  const context = isWork(project) ? `Built at ${project.role}, ${project.year}.` : `${project.role ?? "Personal project"}, ${project.year}.`;
+  const stack = project.stack.length > 1 ? `${project.stack.slice(0, -1).join(", ")} and ${project.stack.at(-1)}` : project.stack[0];
+  const iconBtn =
+    "flex size-9 cursor-pointer items-center justify-center rounded-full text-[var(--ink)] outline-none transition-colors hover:bg-[var(--surface)] focus-visible:ring-2 focus-visible:ring-[var(--ink-2)] active:scale-95";
 
   return (
     <dialog
@@ -241,147 +244,230 @@ function ProjectView({
       }}
     >
       <div ref={pane} className="overlay-pane" style={grotesk}>
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-[var(--background)]/85 px-5 py-3 backdrop-blur-xl sm:px-10">
-          <button
-            type="button"
-            onClick={close}
-            className="flex cursor-pointer items-center gap-1.5 text-[14px] text-[var(--ink-2)] outline-none transition-colors hover:text-[var(--ink)] focus-visible:text-[var(--ink)]"
-          >
-            <ArrowLeft size={14} weight="bold" /> Work
-          </button>
-          {project.video && (
-            <Segmented
-              label="View"
-              value={tab}
-              onChange={(k) => setTab(k as "layers" | "demo")}
-              options={[
-                { key: "layers", label: "Architecture" },
-                { key: "demo", label: "Demo" },
-              ]}
-            />
-          )}
-          <button
-            type="button"
-            onClick={close}
-            className="flex size-9 cursor-pointer items-center justify-center rounded-full bg-[var(--surface)] text-[var(--ink)] outline-none transition-transform hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--ink-2)]"
-            aria-label="Close"
-          >
-            <X size={15} weight="bold" />
-          </button>
+        <div className="sticky top-0 z-10 bg-[var(--background)]">
+          <div className="mx-auto flex h-14 max-w-[1240px] items-center justify-between px-5 sm:px-8">
+            <button
+              type="button"
+              onClick={close}
+              className="-ml-3 flex h-9 cursor-pointer items-center gap-2 rounded-full px-3 text-[14px] text-[var(--ink)] outline-none transition-colors hover:bg-[var(--surface)] focus-visible:ring-2 focus-visible:ring-[var(--ink-2)]"
+            >
+              <ArrowLeft size={15} /> Work
+            </button>
+            <div className="flex items-center gap-1">
+              <span className="mr-2 text-[13px] tabular-nums text-[var(--ink-2)]">
+                {at + 1} of {projects.length}
+              </span>
+              <button type="button" onClick={() => switchTo(prev)} aria-label={`Previous project: ${prev.title}`} className={iconBtn}>
+                <ArrowLeft size={15} />
+              </button>
+              <button type="button" onClick={() => switchTo(next)} aria-label={`Next project: ${next.title}`} className={`${iconBtn} -mr-2`}>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div key={project.slug} className="px-5 pb-20 sm:px-10">
-          <div className="fade-in mt-4 flex flex-col gap-8 lg:mt-6 lg:flex-row lg:items-end lg:justify-between" style={{ animationDelay: "120ms" }}>
-            <div>
-              <p className="flex items-center gap-2 text-[13px] text-[var(--ink-2)]">
-                {isWork(project) ? "■" : "□"} {[project.role, project.year].filter(Boolean).join(" · ")}
-              </p>
-              <h2
-                id="project-title"
-                className="mt-2 text-[clamp(52px,8vw,112px)] font-medium leading-[0.92] tracking-[-0.045em] text-[var(--ink)]"
-              >
+        <article key={project.slug} className="mx-auto max-w-[1240px] px-5 pb-16 sm:px-8">
+          <header className="fade-in flex flex-col gap-5 pt-3 lg:flex-row lg:items-end lg:justify-between lg:gap-12" style={{ animationDelay: "100ms" }}>
+            <div className="min-w-0">
+              <h2 id="project-title" className="text-[clamp(40px,4.6vw,60px)] font-medium leading-[0.95] tracking-[-0.045em] text-[var(--ink)]">
                 {project.title}
               </h2>
-              <p className="mt-3 text-[clamp(18px,1.8vw,24px)] tracking-[-0.015em] text-[var(--ink-2)]">{project.tagline}</p>
+              <p className="mt-2.5 text-[18px] leading-snug tracking-[-0.015em] text-[var(--ink)]">{project.tagline}</p>
+              <p className="mt-1 max-w-[62ch] font-[family-name:var(--font-inter)] text-[13px] leading-[1.55] text-[var(--ink-2)]">
+                {context} Made with {stack}.
+              </p>
             </div>
             {arch && (
-              <dl className="flex flex-wrap gap-x-10 gap-y-5">
+              <dl className="grid shrink-0 grid-cols-3 gap-x-6 gap-y-4 sm:flex sm:gap-x-8">
                 {arch.stats.map((s) => (
-                  <div key={s.label}>
-                    <dt className="sr-only">{s.label}</dt>
-                    <dd className="text-[clamp(28px,2.8vw,40px)] font-medium leading-none tracking-[-0.03em] text-[var(--ink)] tabular-nums">
-                      {s.value}
-                    </dd>
-                    <dd className="mt-1.5 max-w-[16ch] text-[13px] leading-4 text-[var(--ink-2)]">{s.label}</dd>
+                  <div key={s.label} className="flex flex-col-reverse">
+                    <dt className="mt-1 max-w-[14ch] font-[family-name:var(--font-inter)] text-[12px] leading-4 text-[var(--ink-2)]">{s.label}</dt>
+                    <dd className="text-[26px] font-medium leading-none tracking-[-0.035em] tabular-nums text-[var(--ink)]">{s.value}</dd>
                   </div>
                 ))}
               </dl>
             )}
-          </div>
+          </header>
 
-          <div data-ground="sheet" className="fade-in mt-10" style={{ animationDelay: "220ms" }}>
-            {tab === "demo" && project.video ? (
-              <video src={project.video} className="aspect-video w-full rounded-[28px] bg-black object-contain" controls autoPlay muted loop playsInline />
-            ) : arch ? (
-              <Architecture key={project.slug} project={project} />
-            ) : null}
-          </div>
+          {arch && <Showcase key={project.slug} project={project} />}
 
-          <div className="mt-10 flex flex-wrap items-center gap-1.5">
-            {project.stack.map((s) => (
-              <span key={s} className="bg-[var(--surface)] px-2.5 py-1 text-[14px] text-[var(--ink)]">
-                {s}
-              </span>
-            ))}
-            {project.links?.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                target="_blank"
-                rel="noreferrer"
-                className="ml-2 inline-flex items-center gap-1.5 bg-[var(--ink)] px-3.5 py-1.5 text-[14px] font-medium text-[var(--background)] transition-transform hover:-translate-y-0.5"
-              >
-                {l.label}
-                <ArrowUpRight size={13} weight="bold" />
-              </a>
-            ))}
-          </div>
+          {project.links?.length ? (
+            <div className="mt-6 flex flex-wrap gap-2">
+              {project.links.map((l) => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-[14px] font-medium text-[var(--background)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
+                >
+                  {l.label}
+                  <ArrowUpRight size={14} />
+                </a>
+              ))}
+            </div>
+          ) : null}
 
           <button
             type="button"
             onClick={() => switchTo(next)}
-            className="bt-item group mt-16 flex w-full cursor-pointer items-end justify-between gap-6 border-t border-[var(--hair)] pt-8 text-left outline-none"
+            className="group mt-14 flex w-full cursor-pointer items-center justify-between gap-6 rounded-[24px] bg-[var(--stage)] px-6 py-6 text-left outline-none transition-colors hover:bg-[var(--surface)] focus-visible:ring-2 focus-visible:ring-[var(--ink-2)] sm:px-8 sm:py-7"
           >
             <span>
-              <span className="block text-[13px] text-[var(--ink-2)]">Next</span>
-              <span className="bt-hl mt-1 text-[clamp(36px,5vw,72px)] font-medium leading-none tracking-[-0.04em]">
-                <span>{next.title}</span>
-                <span className="bt-grad" aria-hidden>
-                  {next.title}
-                </span>
-              </span>
+              <span className="block font-[family-name:var(--font-inter)] text-[14px] text-[var(--ink-2)]">Next project</span>
+              <span className="mt-1 block text-[clamp(26px,3vw,38px)] font-medium leading-none tracking-[-0.04em] text-[var(--ink)]">{next.title}</span>
+              <span className="mt-2 block font-[family-name:var(--font-inter)] text-[14px] text-[var(--ink-2)]">{next.tagline}</span>
             </span>
-            <ArrowRight size={28} className="mb-2 shrink-0 transition-transform group-hover:translate-x-1" />
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[var(--ink)] text-[var(--background)] transition-transform duration-300 group-hover:translate-x-1">
+              <ArrowRight size={18} />
+            </span>
           </button>
-        </div>
+        </article>
       </div>
     </dialog>
   );
 }
 
-/** The blueprint with what it rests on beside it: a few principles, the layers and the stack. No walkthrough. */
-function Architecture({ project }: { project: Project }) {
+/**
+ * Everything about how the project works on one screen: the demo and the blueprint side by side at the same
+ * height, and under them the ideas it is built on. Hovering an idea lights the parts it runs through; tapping a
+ * part in its chain lifts that layer out of the blueprint.
+ */
+function Showcase({ project }: { project: Project }) {
   const arch = architectures[project.slug];
   const accent = accentOf(project);
-  return (
-    <div className="grid overflow-hidden rounded-[28px] bg-[#0a0b0c] text-white lg:grid-cols-[1fr_330px]">
-      <Blueprint arch={arch} accent={accent} video={project.video} title={project.title} />
-      <aside className="flex flex-col gap-8 border-t border-white/10 p-6 sm:p-8 lg:border-l lg:border-t-0">
-        {arch.principles && (
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/40">Built on</p>
-            <ol className="mt-4 flex flex-col gap-4">
-              {arch.principles.map((t, i) => (
-                <li key={t} className="flex gap-3">
-                  <span className="mt-1.5 font-mono text-[11px] text-white/35">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="text-[19px] font-medium leading-6 tracking-[-0.02em]">{t}</span>
-                </li>
-              ))}
+  const [ratio, setRatio] = useState(16 / 9);
+  const [hover, setHover] = useState<number | null>(null);
+  const [pinned, setPinned] = useState<number | null>(null);
+  const blueprint = useRef<BlueprintHandle>(null);
+  const active = hover ?? pinned;
+  const principles = arch.principles ?? [];
+  const video = project.video;
+
+  const part = (key: string) => {
+    const [l, p] = key.split(":").map(Number);
+    return { l, p, ...arch.layers[l].parts[p] };
+  };
+
+  const shown = active === null ? null : principles[active];
+  const ideas = principles.length > 0 && (
+    <section aria-labelledby="ideas-title" style={{ "--accent": accent } as CSSProperties}>
+      <h3 id="ideas-title" className="text-[15px] font-medium tracking-[-0.015em] text-[var(--ink)]">
+        Built on
+      </h3>
+      <div className="mt-2.5 flex flex-wrap gap-1.5" role="tablist" aria-label="Ideas behind the build" onMouseLeave={() => setHover(null)}>
+        {principles.map((pr, i) => (
+          <button
+            key={pr.text}
+            type="button"
+            role="tab"
+            aria-selected={pinned === i}
+            onMouseEnter={() => setHover(i)}
+            onFocus={() => setHover(i)}
+            onBlur={() => setHover(null)}
+            onClick={() => setPinned(pinned === i ? null : i)}
+            className="idea-pill h-9 cursor-pointer rounded-full px-3.5 text-[14px] tracking-[-0.01em] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-2)]"
+            data-on={active === i || undefined}
+            data-pinned={pinned === i || undefined}
+          >
+            {pr.text}
+          </button>
+        ))}
+      </div>
+      <div className="idea mt-2 min-h-[124px] rounded-[18px] px-4 py-3.5" data-on={shown ? true : undefined} aria-live="polite">
+        {shown ? (
+          <>
+            <p className="font-[family-name:var(--font-inter)] text-[14px] leading-[1.5] text-[var(--ink)]">{shown.proof}</p>
+            <p className="mt-3 font-[family-name:var(--font-inter)] text-[12px] text-[var(--ink-2)]">How it runs, step by step</p>
+            <ol className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-1.5">
+              {shown.parts.map((k, idx) => {
+                const pt = part(k);
+                const I = partIcon[pt.kind];
+                return (
+                  <li key={k} className="flex items-center gap-1">
+                    {idx > 0 && <ArrowRight size={10} className="idea-arrow" aria-hidden />}
+                    <button
+                      type="button"
+                      onClick={() => blueprint.current?.openLayer(pt.l, pt.p)}
+                      className="idea-step idea-step-in flex h-7 cursor-pointer items-center gap-1.5 rounded-full px-2.5 font-[family-name:var(--font-inter)] text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-2)]"
+                      style={{ animationDelay: `${idx * 70}ms` }}
+                      aria-label={`Open ${pt.label} in the ${arch.layers[pt.l].name} layer`}
+                    >
+                      <I size={12} weight="fill" className="idea-icon" />
+                      {pt.label}
+                    </button>
+                  </li>
+                );
+              })}
             </ol>
-          </div>
+          </>
+        ) : (
+          <p className="font-[family-name:var(--font-inter)] text-[14px] leading-[1.5] text-[var(--ink-2)]">
+            {principles.length === 3 ? "Three" : principles.length} ideas hold this system together. Pick one to see the exact path it
+            takes through the stack, then tap any step to open it.
+          </p>
         )}
-        <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/40">Layers</p>
-          <ol className="mt-3 flex flex-col gap-1.5 font-mono text-[12px] uppercase tracking-[0.1em] text-white/55">
-            {arch.layers.map((l, i) => (
-              <li key={l.name}>
-                {String(i + 1).padStart(2, "0")} — {l.name}
-              </li>
-            ))}
-          </ol>
-        </div>
-        {arch.footnote && <p className="text-[13px] leading-snug text-white/50">{arch.footnote}</p>}
-      </aside>
+      </div>
+    </section>
+  );
+
+  const stage = (
+    <section data-ground="sheet" className="flex min-h-0 flex-col" aria-labelledby="arch-title">
+      <div className="mb-2.5 flex items-baseline justify-between gap-4">
+        <h3 id="arch-title" className="text-[15px] font-medium tracking-[-0.015em] text-[var(--ink)]">
+          How it&apos;s built
+        </h3>
+        <p className="font-[family-name:var(--font-inter)] text-[12px] text-[var(--ink-2)]">Drag to turn, pinch to zoom</p>
+      </div>
+      <div className="flex-1 overflow-hidden rounded-[20px]">
+        <Blueprint
+          ref={blueprint}
+          arch={arch}
+          accent={accent}
+          video={video}
+          title={project.title}
+          highlight={active === null ? null : principles[active]?.parts}
+          stageClass={video ? "h-[420px] lg:h-full" : "h-[420px] lg:h-[520px]"}
+        />
+      </div>
+    </section>
+  );
+
+  if (!video)
+    return (
+      <div className="fade-in mt-7 grid gap-8 lg:grid-cols-12 lg:gap-6" style={{ animationDelay: "180ms" }}>
+        <div className="lg:col-span-7">{stage}</div>
+        <div className="lg:col-span-5">{ideas}</div>
+      </div>
+    );
+
+  return (
+    <div className="fade-in mt-7 grid gap-8 lg:grid-cols-2 lg:gap-4" style={{ animationDelay: "180ms" }}>
+      <div className="flex flex-col gap-8 lg:gap-6">
+        <section aria-labelledby="demo-title">
+          <h3 id="demo-title" className="mb-2.5 text-[15px] font-medium tracking-[-0.015em] text-[var(--ink)]">
+            What it does
+          </h3>
+          <video
+            src={video}
+            className="w-full rounded-[20px] bg-[var(--stage)]"
+            style={{ aspectRatio: ratio }}
+            onLoadedMetadata={(e) => {
+              const v = e.currentTarget;
+              if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight);
+            }}
+            controls
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
+        </section>
+        <div className="hidden lg:block">{ideas}</div>
+      </div>
+      {stage}
+      <div className="lg:hidden">{ideas}</div>
     </div>
   );
 }
