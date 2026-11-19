@@ -231,6 +231,7 @@ export const shelf: ShelfList[] = [
       { name: "IBM Technology", href: "https://www.youtube.com/channel/UCKWaEZ-_VweaEx1j62do_vQ", description: "AI and tech, clearly explained", avatar: "/shelf/ibm-technology.jpg" },
       { name: "AI Engineer", href: "https://www.youtube.com/@aiDotEngineer", description: "Talks from the AI Engineer conferences", avatar: "/shelf/ai-engineer.jpg" },
       { name: "Nick Saraev", href: "https://www.youtube.com/@nicksaraev/videos", description: "AI automation and agents", avatar: "/shelf/nick-saraev.jpg" },
+      { name: "Stanford CME295 · AI Agents", href: "https://www.youtube.com/watch?v=nU2a2lm6vDE", description: "Transformers & LLMs, Lecture 6: AI Agents", image: "/shelf/stanford-agents.jpg", badge: "/shelf/stanford-online.jpg" },
     ],
   },
   {
