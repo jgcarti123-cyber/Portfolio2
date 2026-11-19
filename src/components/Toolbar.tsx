@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, type PointerEvent } from "react";
+import { useEffect, useRef, type MouseEvent, type PointerEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { BigTabs } from "./BigTabs";
 import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react/dist/ssr";
 import { featured, work } from "@/data/site";
@@ -43,7 +44,47 @@ const counts = {
  * The pages as huge words with counts (after things.bharadwhat.com), sized to run off the right edge of the
  * window on wide screens. On phones the row scrolls sideways instead.
  */
-export function Toolbar({ active }: { active: ActivePage }) {
+export function Toolbar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const active: ActivePage = pages.find((p) => p.href !== "/" && pathname.startsWith(p.href))?.page ?? "home";
+  const leaving = useRef<Animation | null>(null);
+
+  // The new page has arrived: drop whatever is left of the old one's exit.
+  useEffect(() => {
+    leaving.current?.cancel();
+    leaving.current = null;
+  }, [pathname]);
+
+  // Going to another page: the header stays, the page under it softens and lifts away, then the next one
+  // settles in with its own staggered entrance.
+  function onNavigate(e: MouseEvent<HTMLElement>) {
+    const a = (e.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const href = a.getAttribute("href")!;
+    const main = document.querySelector<HTMLElement>("#site main");
+    if (href === pathname || leaving.current) return e.preventDefault();
+    if (!main || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    e.preventDefault();
+    router.prefetch(href);
+    leaving.current = main.animate(
+      [
+        { opacity: 1, filter: "blur(0px)", transform: "none" },
+        { opacity: 0, filter: "blur(6px)", transform: "translateY(-8px)" },
+      ],
+      { duration: 240, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
+    );
+    // Navigate when the exit ends, or after a beat anyway if the browser holds animations back (a hidden tab).
+    let gone = false;
+    const go = () => {
+      if (gone) return;
+      gone = true;
+      router.push(href);
+    };
+    leaving.current.onfinish = go;
+    setTimeout(go, 320);
+  }
+
   // Mouse users can drag the row sideways; trackpads and touch scroll it natively. A drag never counts as a click.
   const drag = useRef<{ x: number; left: number; moved: boolean; row: HTMLElement } | null>(null);
   const dragged = useRef(false);
@@ -82,7 +123,8 @@ export function Toolbar({ active }: { active: ActivePage }) {
       onPointerCancel={onPointerUp}
       onDragStart={(e) => e.preventDefault()}
       onClickCapture={(e) => {
-        if (!dragged.current) return;
+        // Capture runs before the Link's own click, so preventing here stops its instant navigation.
+        if (!dragged.current) return onNavigate(e);
         dragged.current = false;
         e.preventDefault();
         e.stopPropagation();

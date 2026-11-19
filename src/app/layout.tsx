@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Host_Grotesk, Inter } from "next/font/google";
 import { ClickSound } from "@/components/ClickSound";
 import { EdgeFades } from "@/components/EdgeFades";
+import { GiantHeader } from "@/components/Header";
 import { Mascot } from "@/components/Mascot";
 import { OwnerHeartbeat } from "@/components/OwnerHeartbeat";
 import { PullCord } from "@/components/PullCord";
@@ -54,7 +55,11 @@ export default function RootLayout({
         <OwnerHeartbeat />
         <EdgeFades />
         <PullCord />
-        {children}
+        {/* Everything a project view pushes back when it opens. */}
+        <div id="site" className="bg-background">
+          <GiantHeader />
+          {children}
+        </div>
         <Mascot />
       </body>
     </html>

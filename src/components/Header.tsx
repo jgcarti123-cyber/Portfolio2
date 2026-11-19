@@ -3,14 +3,15 @@ import Link from "next/link";
 import { profile } from "@/data/site";
 import { Clock } from "./Clock";
 import { OnlineDot } from "./OnlineDot";
-import { SoundToggle, Toolbar, type ActivePage } from "./Toolbar";
+import { SoundToggle, Toolbar } from "./Toolbar";
 
 /**
  * The top quarter of every page: John's name stacked like a logo, with the pages as huge words starting right
  * beside it and running off the window edge, all in white over a photo of the sky. Clock and sound sit in the
- * top-right corner. On phones the name sits above the words instead.
+ * top-right corner. On phones the name sits above the words instead. It lives in the root layout, so it stays
+ * put while the page below it changes.
  */
-export function GiantHeader({ active }: { active: ActivePage }) {
+export function GiantHeader() {
   return (
     <header className="giant-head on-photo dark fade-in relative isolate overflow-hidden px-5 pt-5 sm:px-8 md:pt-7">
       {/* The sky behind the name and the page words. The header runs in dark colours so its text sits in white. */}
@@ -38,7 +39,7 @@ export function GiantHeader({ active }: { active: ActivePage }) {
           </p>
         </Link>
         <div className="min-w-0 flex-1">
-          <Toolbar active={active} />
+          <Toolbar />
         </div>
       </div>
     </header>

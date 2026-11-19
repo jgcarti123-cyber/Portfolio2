@@ -226,6 +226,36 @@ function inset(r: DOMRect | undefined) {
   return `inset(${r.top}px ${window.innerWidth - r.right}px ${window.innerHeight - r.bottom}px ${r.left}px round 26px)`;
 }
 
+/**
+ * The page behind a project sinks back and dims while the project opens over it, and comes forward again on
+ * close. Only the part of the page in the window is kept (rounded), so it reads as a card stepping back.
+ */
+function pushBack(open: boolean, duration: number) {
+  const site = document.getElementById("site");
+  if (!site) return;
+  const top = window.scrollY;
+  const view = `inset(${top}px 0px ${site.offsetHeight - top - window.innerHeight}px 0px round 0px)`;
+  const back = `inset(${top}px 0px ${site.offsetHeight - top - window.innerHeight}px 0px round 22px)`;
+  site.style.transformOrigin = `50% ${top + window.innerHeight / 2}px`;
+  document.body.style.background = "#000";
+  document.body.dataset.pushed = "";
+  const frames = [
+    { transform: "none", filter: "brightness(1)", clipPath: view },
+    { transform: "scale(0.94)", filter: "brightness(0.55)", clipPath: back },
+  ];
+  const a = site.animate(open ? frames : frames.reverse(), { duration, easing: EASE, fill: "forwards" });
+  if (!open) a.onfinish = settle;
+}
+
+/** Puts the page back exactly as it was. */
+function settle() {
+  const site = document.getElementById("site");
+  site?.getAnimations().forEach((x) => x.cancel());
+  if (site) site.style.transformOrigin = "";
+  document.body.style.background = "";
+  delete document.body.dataset.pushed;
+}
+
 function ProjectView({
   project,
   from,
@@ -254,12 +284,16 @@ function ProjectView({
     document.documentElement.style.overflow = "hidden";
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce || !from) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: "ease-out" });
-    else el.animate([{ clipPath: inset(from) }, { clipPath: inset(undefined) }], { duration: 560, easing: EASE });
+    else {
+      el.animate([{ clipPath: inset(from) }, { clipPath: inset(undefined) }], { duration: 640, easing: EASE });
+      pushBack(true, 640);
+    }
   }, [from]);
 
   useEffect(
     () => () => {
       document.documentElement.style.overflow = "";
+      settle();
     },
     [],
   );
@@ -273,19 +307,89 @@ function ProjectView({
       document.documentElement.style.overflow = "";
       onClosed();
     };
+    const pushed = !!document.getElementById("site")?.getAnimations().length;
     if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return finish();
     const to = tileRect(project.slug);
-    const onScreen = to && to.bottom > 0 && to.top < window.innerHeight;
-    const anim = onScreen
-      ? el.animate([{ clipPath: inset(undefined) }, { clipPath: inset(to) }], { duration: 440, easing: EASE, fill: "forwards" })
-      : el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: "ease-in", fill: "forwards" });
-    anim.onfinish = finish;
+    const onScreen = !!to && to.bottom > 0 && to.top < window.innerHeight;
+    let anim: Animation;
+    let total: number;
+    if (onScreen) {
+      // The words leave first, then the empty page folds down into its tile and melts into it, so the tile is
+      // never shown holding a cropped corner of the project.
+      total = 880;
+      [...el.children].forEach((c) =>
+        c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, easing: "ease-in", fill: "forwards" }),
+      );
+      anim = el.animate(
+        [
+          { clipPath: inset(undefined), opacity: 1 },
+          { opacity: 1, offset: 0.65 },
+          { clipPath: inset(to), opacity: 0 },
+        ],
+        { duration: 800, delay: 80, easing: EASE, fill: "forwards" },
+      );
+    } else {
+      // The tile has scrolled away: the page shrinks back into the distance and fades while Home comes forward.
+      total = 640;
+      anim = el.animate(
+        [
+          { transform: "none", opacity: 1, borderRadius: "0px" },
+          { transform: "scale(0.9)", opacity: 0, borderRadius: "28px" },
+        ],
+        { duration: total, easing: EASE, fill: "forwards" },
+      );
+    }
+    if (pushed) pushBack(false, total);
+    let done = false;
+    const end = () => {
+      if (done) return;
+      done = true;
+      finish();
+    };
+    anim.onfinish = end;
+    setTimeout(end, total + 400);
   }, [onClosed, project.slug]);
 
-  function switchTo(p: Project) {
-    pane.current?.scrollTo({ top: 0 });
-    onSwitch(p);
+  // Next and previous slide sideways: the current project leaves toward one side and the next arrives from the
+  // other, the way the arrow points.
+  const article = useRef<HTMLElement>(null);
+  const slide = useRef(0);
+  const switching = useRef(false);
+  function switchTo(p: Project, dir: 1 | -1) {
+    const el = article.current;
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      pane.current?.scrollTo({ top: 0 });
+      onSwitch(p);
+    };
+    if (switching.current) return;
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return go();
+    switching.current = true;
+    slide.current = dir;
+    el.animate(
+      [
+        { opacity: 1, transform: "none" },
+        { opacity: 0, transform: `translateX(${-dir * 48}px)` },
+      ],
+      { duration: 200, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
+    ).onfinish = go;
+    setTimeout(go, 280);
   }
+  useLayoutEffect(() => {
+    const dir = slide.current;
+    slide.current = 0;
+    switching.current = false;
+    if (!dir) return;
+    article.current?.animate(
+      [
+        { opacity: 0, transform: `translateX(${dir * 72}px)` },
+        { opacity: 1, transform: "none" },
+      ],
+      { duration: 620, easing: EASE },
+    );
+  }, [project.slug]);
 
   const at = projects.findIndex((p) => p.slug === project.slug);
   const next = projects[(at + 1) % projects.length];
@@ -319,17 +423,17 @@ function ProjectView({
               <span className="mr-2 text-[13px] tabular-nums text-[var(--ink-2)]">
                 {at + 1} of {projects.length}
               </span>
-              <button type="button" onClick={() => switchTo(prev)} aria-label={`Previous project: ${prev.title}`} className={iconBtn}>
+              <button type="button" onClick={() => switchTo(prev, -1)} aria-label={`Previous project: ${prev.title}`} className={iconBtn}>
                 <ArrowLeft size={15} />
               </button>
-              <button type="button" onClick={() => switchTo(next)} aria-label={`Next project: ${next.title}`} className={`${iconBtn} -mr-2`}>
+              <button type="button" onClick={() => switchTo(next, 1)} aria-label={`Next project: ${next.title}`} className={`${iconBtn} -mr-2`}>
                 <ArrowRight size={15} />
               </button>
             </div>
           </div>
         </div>
 
-        <article key={project.slug} className="mx-auto max-w-[1240px] px-5 pb-16 sm:px-8">
+        <article ref={article} key={project.slug} className="mx-auto max-w-[1240px] px-5 pb-16 sm:px-8">
           <header className="fade-in flex flex-col gap-5 pt-3 lg:flex-row lg:items-end lg:justify-between lg:gap-12" style={{ animationDelay: "100ms" }}>
             <div className="min-w-0">
               <h2 id="project-title" className="text-[clamp(40px,4.6vw,60px)] font-medium leading-[0.95] tracking-[-0.045em] text-[var(--ink)]">
@@ -373,7 +477,7 @@ function ProjectView({
 
           <button
             type="button"
-            onClick={() => switchTo(next)}
+            onClick={() => switchTo(next, 1)}
             className="group mt-14 flex w-full cursor-pointer items-center justify-between gap-6 rounded-[24px] bg-[var(--stage)] px-6 py-6 text-left outline-none transition-colors hover:bg-[var(--surface)] focus-visible:ring-2 focus-visible:ring-[var(--ink-2)] sm:px-8 sm:py-7"
           >
             <span>

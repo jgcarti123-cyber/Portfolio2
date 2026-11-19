@@ -682,6 +682,8 @@ dialog.overlay {
   outline: none;
 }
 dialog.overlay::backdrop { background: transparent; }
+/* While a project is open the page behind steps back onto black; the white edge fades would sit on that black. */
+body[data-pushed] .edge-fade { opacity: 0 !important; }
 .overlay-pane {
   position: fixed;
   inset: 0;

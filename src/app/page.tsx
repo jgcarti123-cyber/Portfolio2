@@ -2,7 +2,6 @@ import { Connect4 } from "@/components/Connect4";
 import { Contributions } from "@/components/Contributions";
 import { CopyEmail } from "@/components/CopyEmail";
 import { Footer } from "@/components/Footer";
-import { GiantHeader } from "@/components/Header";
 import { Icon } from "@/components/Icon";
 import { InlineLink } from "@/components/InlineLink";
 import { RotatingText } from "@/components/RotatingText";
@@ -42,8 +41,6 @@ export default function Home() {
   return (
     <ProjectsProvider projects={projects}>
       <div className="group/page">
-        <GiantHeader active="home" />
-
         <main className="pb-32">
           {/* Intro, as before: the words on the left, the graph and Connect 4 on the right */}
           <div className="mx-auto mt-10 flex max-w-[900px] flex-col gap-10 px-5 sm:px-8 desktop:grid desktop:grid-cols-[380px_320px] desktop:justify-center desktop:gap-x-16">
