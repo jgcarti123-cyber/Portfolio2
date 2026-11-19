@@ -16,6 +16,7 @@ import {
   SquaresFour,
   Stack,
   TreeStructure,
+  Palette,
   Wrench,
   YoutubeLogo,
 } from "@phosphor-icons/react/dist/ssr";
@@ -36,6 +37,7 @@ const icons: Record<ShelfIcon, PhosphorIcon> = {
   database: Database,
   cloud: Cloud,
   wrench: Wrench,
+  palette: Palette,
   graduation: GraduationCap,
   book: BookOpen,
   youtube: YoutubeLogo,

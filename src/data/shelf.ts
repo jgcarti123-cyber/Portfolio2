@@ -45,7 +45,8 @@ export type ShelfIcon =
   | "book"
   | "youtube"
   | "music"
-  | "chart";
+  | "chart"
+  | "palette";
 
 export type ShelfList = {
   slug: string;
@@ -178,6 +179,17 @@ export const shelf: ShelfList[] = [
       { name: "Excalidraw", href: "https://excalidraw.com", description: "Hand-drawn diagrams" },
       { name: "pytest", href: "https://pytest.org", description: "2,600+ tests behind AIVA" },
       { name: "cantools", href: "https://cantools.readthedocs.io", description: "Parse CAN DBC files in Python" },
+    ],
+  },
+  {
+    slug: "design",
+    label: "Design",
+    icon: "palette",
+    links: [
+      { name: "Mebius Charts", href: "https://www.mebius.design/freebies/charts#charts", description: "Free chart designs" },
+      { name: "Designeer Finds", href: "https://designeer.xyz/finds", description: "Design finds worth saving" },
+      { name: "Swipe", href: "https://swipe.hex.inc/", description: "Design ideas to swipe through" },
+      { name: "Inspora", href: "https://www.inspora.design/", description: "Design ideas and inspiration" },
     ],
   },
   {
