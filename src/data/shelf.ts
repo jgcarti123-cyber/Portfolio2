@@ -213,6 +213,8 @@ export const shelf: ShelfList[] = [
     icon: "book",
     links: [
       { name: "Building Effective Agents", href: "https://www.anthropic.com/engineering/building-effective-agents", description: "Anthropic on agent patterns" },
+      { name: "The Components of Agent Memory", href: "https://www.anthropic.com/research/components-of-agent-memory", description: "Anthropic on how agents decide what to remember" },
+      { name: "Dreaming with a Dynamic Workflow", href: "https://platform.claude.com/cookbook/managed-agents-cma-dreaming-with-a-dynamic-workflow", description: "Claude Cookbook: nightly memory for agents" },
       { name: "LLM Powered Autonomous Agents", href: "https://lilianweng.github.io/posts/2023-06-23-agent/", description: "Lilian Weng" },
       { name: "Patterns for LLM Systems", href: "https://eugeneyan.com/writing/llm-patterns/", description: "Eugene Yan" },
       { name: "Simon Willison's Weblog", href: "https://simonwillison.net", description: "Daily notes on LLMs" },
