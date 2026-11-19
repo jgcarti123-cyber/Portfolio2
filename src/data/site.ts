@@ -30,6 +30,8 @@ export type Project = {
   /** Tint for the generated tile. */
   accent?: string;
   links?: { label: string; href: string }[];
+  /** A live website: its first screen stands in for the demo video and opens the site when clicked. */
+  site?: { href: string; preview: string };
   stack: string[];
   points: string[];
 };
@@ -84,10 +86,9 @@ export const featured: Project[] = [
     icon: "paw",
     year: "2026",
     role: "Personal",
-    // Live site timed out when screenshotting — drop a capture at /public/work/prim-pets.png and uncomment.
-    // image: "/work/prim-pets.png",
     accent: "#8b5cf6",
-    links: [{ label: "Visit site", href: "https://prim-pets.onrender.com" }],
+    links: [{ label: "Visit site", href: "https://whoof-chatbot-nict.vercel.app" }],
+    site: { href: "https://whoof-chatbot-nict.vercel.app", preview: "/work/prim-pets-site.jpg" },
     stack: ["Node.js", "PostgreSQL", "Hybrid RAG", "Render"],
     points: [
       "An AI assistant for pet owners, answering questions from a knowledge base of 200+ veterinary documents using hybrid vector + keyword search.",

@@ -11,6 +11,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import Image from "next/image";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "@phosphor-icons/react/dist/ssr";
 import { architectures } from "@/data/architecture";
 import type { Project } from "@/data/site";
@@ -671,6 +672,50 @@ function IdeaPath({
 }
 
 /**
+ * A live website shown as its first screen in a quiet browser frame. The whole thing is the link: hovering
+ * lifts the picture a touch and brings up "Visit site"; on touch screens the label is always shown.
+ */
+function SitePreview({ site, title }: { site: NonNullable<Project["site"]>; title: string }) {
+  const host = new URL(site.href).host;
+  return (
+    <a
+      href={site.href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`Visit the ${title} website (opens in a new tab)`}
+      className="group block overflow-hidden rounded-[20px] bg-[var(--stage)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-2)]"
+    >
+      <div className="flex h-10 items-center gap-3 px-4">
+        <span className="flex gap-1.5" aria-hidden>
+          <span className="size-2.5 rounded-full bg-[var(--ink-3)] opacity-60" />
+          <span className="size-2.5 rounded-full bg-[var(--ink-3)] opacity-60" />
+          <span className="size-2.5 rounded-full bg-[var(--ink-3)] opacity-60" />
+        </span>
+        <span className="mx-auto flex h-6 min-w-0 items-center gap-1.5 truncate rounded-full bg-[var(--background)] px-3 font-[family-name:var(--font-inter)] text-[12px] text-[var(--ink-2)]">
+          {host}
+        </span>
+        <span className="w-[42px]" aria-hidden />
+      </div>
+      <div className="relative mx-2.5 mb-2.5 overflow-hidden rounded-[12px]">
+        <Image
+          src={site.preview}
+          alt={`The ${title} website`}
+          width={1600}
+          height={1000}
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          className="block h-auto w-full transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.025]"
+        />
+        <span className="absolute inset-0 bg-black/0 transition-colors duration-500 group-hover:bg-black/20" aria-hidden />
+        <span className="absolute bottom-4 right-4 inline-flex h-10 items-center gap-2 rounded-full bg-[var(--ink)] px-5 text-[14px] font-medium text-[var(--background)] opacity-0 shadow-[0_8px_24px_-8px_rgb(0_0_0/0.45)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] [transform:translateY(6px)] group-hover:opacity-100 group-hover:[transform:none] group-focus-visible:opacity-100 group-focus-visible:[transform:none] [@media(hover:none)]:opacity-100 [@media(hover:none)]:[transform:none]">
+          Visit site
+          <ArrowUpRight size={14} />
+        </span>
+      </div>
+    </a>
+  );
+}
+
+/**
  * Everything about how the project works on one screen: the demo and the blueprint side by side at the same
  * height, and under them the ideas it is built on. Hovering an idea lights the parts it runs through; tapping a
  * part in its chain lifts that layer out of the blueprint.
@@ -683,6 +728,7 @@ function Showcase({ project }: { project: Project }) {
   const blueprint = useRef<BlueprintHandle>(null);
   const principles = arch.principles ?? [];
   const video = project.video;
+  const site = project.site;
 
   const ideas = principles.length > 0 && (
     <IdeaPath
@@ -709,13 +755,13 @@ function Showcase({ project }: { project: Project }) {
           video={video}
           title={project.title}
           highlight={lit}
-          stageClass={video ? "h-[420px] lg:h-full" : "h-[420px] lg:h-[520px]"}
+          stageClass={video || site ? "h-[420px] lg:h-full" : "h-[420px] lg:h-[520px]"}
         />
       </div>
     </section>
   );
 
-  if (!video)
+  if (!video && !site)
     return (
       <div className="fade-in mt-7 grid gap-8 lg:grid-cols-12 lg:gap-6" style={{ animationDelay: "180ms" }}>
         <div className="lg:col-span-7">{stage}</div>
@@ -730,20 +776,24 @@ function Showcase({ project }: { project: Project }) {
           <h3 id="demo-title" className="mb-2.5 text-[15px] font-medium tracking-[-0.015em] text-[var(--ink)]">
             What it does
           </h3>
-          <video
-            src={video}
-            className="w-full rounded-[20px] bg-[var(--stage)]"
-            style={{ aspectRatio: ratio }}
-            onLoadedMetadata={(e) => {
-              const v = e.currentTarget;
-              if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight);
-            }}
-            controls
-            autoPlay
-            muted
-            loop
-            playsInline
-          />
+          {site ? (
+            <SitePreview site={site} title={project.title} />
+          ) : (
+            <video
+              src={video}
+              className="w-full rounded-[20px] bg-[var(--stage)]"
+              style={{ aspectRatio: ratio }}
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight);
+              }}
+              controls
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          )}
         </section>
         <div className="hidden lg:block">{ideas}</div>
       </div>
