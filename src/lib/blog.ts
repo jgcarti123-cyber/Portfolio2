@@ -14,6 +14,7 @@ import { Marked } from "marked";
  *   cover: /blog/my-panorama.jpg      (optional; a wide picture in public/, defaults to the header sky)
  *   coverPosition: center 40%         (optional; which part of the picture the crop keeps)
  *   draft: true                       (optional; drafts show while running locally, never on the live site)
+ *   last: true                        (optional; always listed after every other post, however new it is)
  *   ---
  *
  * The file name is the address: content/blog/hello-world.md becomes /blog/hello-world.
@@ -32,6 +33,7 @@ export type PostMeta = {
   cover: string;
   coverPosition: string;
   draft: boolean;
+  last: boolean;
   minutes: number;
 };
 
@@ -112,6 +114,7 @@ function read(slug: string): Post | null {
     cover: data.cover || "/header-sky.jpg",
     coverPosition: data.coverPosition || "center",
     draft,
+    last: data.last === "true",
     minutes: Math.max(1, Math.round(words / 220)),
     markdown: body.trim(),
     ...render(body),
@@ -122,7 +125,7 @@ export function getPost(slug: string) {
   return read(slug);
 }
 
-/** Every post that can be shown, newest first. */
+/** Every post that can be shown, newest first, with posts marked last at the end. */
 export function getPosts(): PostMeta[] {
   let files: string[] = [];
   try {
@@ -138,7 +141,7 @@ export function getPosts(): PostMeta[] {
       delete meta.markdown;
       return meta as PostMeta;
     })
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => Number(a.last) - Number(b.last) || b.date.localeCompare(a.date));
 }
 
 export function formatDate(iso: string) {
