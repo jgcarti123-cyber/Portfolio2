@@ -3,8 +3,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 /**
- * The personal photos that fan out of John's name in the header, read from public/Photos (up to five). With
- * no photos there, the name shows no fan.
+ * The personal photos that fan out of John's name in the header, read from public/Photos (up to five). They
+ * go into the fan in file-name order, left to right, so the number at the start of each name sets its place
+ * (3 is the middle). With no photos there, the name shows no fan.
  */
 
 /** ratio is width ÷ height (1 if it can't be read). */
