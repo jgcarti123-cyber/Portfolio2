@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ["image/avif", "image/webp"],
+    // 92 is for blog panoramas, which are large and soft enough that compression shows.
+    qualities: [75, 92],
   },
 };
 

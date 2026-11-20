@@ -9,12 +9,13 @@ import { shelf } from "@/data/shelf";
 import { skillGroups } from "@/data/skills";
 import { playTick, setSoundEnabled, useSoundEnabled } from "@/lib/sound";
 
-export type ActivePage = "home" | "skills" | "shelf";
+export type ActivePage = "home" | "skills" | "shelf" | "blog";
 
 const pages = [
   { page: "home", href: "/", label: "Home" },
   { page: "shelf", href: "/shelf", label: "Shelf" },
   { page: "skills", href: "/skills", label: "Skills" },
+  { page: "blog", href: "/blog", label: "Blog" },
 ] as const;
 
 const base =
@@ -44,7 +45,7 @@ const counts = {
  * The pages as huge words with counts (after things.bharadwhat.com), sized to run off the right edge of the
  * window on wide screens. On phones the row scrolls sideways instead.
  */
-export function Toolbar() {
+export function Toolbar({ blogCount }: { blogCount: number }) {
   const pathname = usePathname();
   const router = useRouter();
   const active: ActivePage = pages.find((p) => p.href !== "/" && pathname.startsWith(p.href))?.page ?? "home";
@@ -55,6 +56,24 @@ export function Toolbar() {
     leaving.current?.cancel();
     leaving.current = null;
   }, [pathname]);
+
+  // The words run off the right edge, so slide the row until the current page's word is in view (and back to
+  // the start for Home). Instant on first load, smooth when moving between pages.
+  const nav = useRef<HTMLElement>(null);
+  const placed = useRef(false);
+  useEffect(() => {
+    const row = nav.current?.querySelector<HTMLElement>(".giant-tabs");
+    const word = row?.querySelector<HTMLElement>("[data-active]");
+    if (!row || !word) return;
+    const fade = 96;
+    const start = word.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+    const right = start + word.offsetWidth + fade - row.clientWidth;
+    const left = row.scrollLeft > start ? start : Math.max(row.scrollLeft, right);
+    const target = active === "home" ? 0 : Math.max(0, left);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    row.scrollTo({ left: target, behavior: placed.current && !reduce ? "smooth" : "instant" });
+    placed.current = true;
+  }, [active]);
 
   // Going to another page: the header stays, the page under it softens and lifts away, then the next one
   // settles in with its own staggered entrance.
@@ -116,6 +135,7 @@ export function Toolbar() {
 
   return (
     <nav
+      ref={nav}
       aria-label="Site"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -135,7 +155,7 @@ export function Toolbar() {
         size="clamp(64px, 13vw, 260px)"
         className="giant-tabs"
         active={active}
-        items={pages.map(({ page, href, label }) => ({ key: page, label, href, count: counts[page] }))}
+        items={pages.map(({ page, href, label }) => ({ key: page, label, href, count: page === "blog" ? blogCount : counts[page] }))}
       />
     </nav>
   );

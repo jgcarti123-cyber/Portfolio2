@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Host_Grotesk, Inter } from "next/font/google";
+import { Geist_Mono, Host_Grotesk, Inter } from "next/font/google";
+import Script from "next/script";
 import { ClickSound } from "@/components/ClickSound";
 import { EdgeFades } from "@/components/EdgeFades";
 import { GiantHeader } from "@/components/Header";
@@ -23,6 +24,17 @@ const grotesk = Host_Grotesk({
   display: "swap",
 });
 
+// The blog's labels, tree and share links (after claude.dev).
+const mono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
+// J, the footballer mascot, is switched off for now. His code stays in components/Mascot.tsx; set this back to
+// true to bring him back.
+const SHOW_MASCOT = false;
+
 export const metadata: Metadata = {
   title: {
     default: `${profile.name} – Portfolio`,
@@ -39,16 +51,20 @@ export const viewport: Viewport = {
   ],
 };
 
-// Applies the saved theme before first paint so there is no light/dark flash.
-const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}})()`;
+// Applies the theme before first paint so there is no light/dark flash. A choice made with the pull cord always
+// wins; without one, the site is dark from 6pm to 6am India time (IST, UTC+5:30), and follows the device otherwise.
+const themeScript = `(function(){try{var t=localStorage.getItem('theme');var n=new Date();var h=((n.getUTCHours()*60+n.getUTCMinutes()+330)%1440)/60;var night=h>=18||h<6;var d=t?t==='dark':(night||matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})()`;
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${grotesk.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${grotesk.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* next/script places this in the server HTML only, so React never tries to render a script tag itself. */}
+        <Script id="theme" strategy="beforeInteractive">
+          {themeScript}
+        </Script>
       </head>
       <body className="min-h-screen bg-background text-foreground">
         <ClickSound />
@@ -60,7 +76,7 @@ export default function RootLayout({
           <GiantHeader />
           {children}
         </div>
-        <Mascot />
+        {SHOW_MASCOT && <Mascot />}
       </body>
     </html>
   );

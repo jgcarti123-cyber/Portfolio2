@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { profile } from "@/data/site";
+import { getPosts } from "@/lib/blog";
 import { Clock } from "./Clock";
 import { OnlineDot } from "./OnlineDot";
 import { SoundToggle, Toolbar } from "./Toolbar";
@@ -39,7 +40,7 @@ export function GiantHeader() {
           </p>
         </Link>
         <div className="min-w-0 flex-1">
-          <Toolbar />
+          <Toolbar blogCount={getPosts().length} />
         </div>
       </div>
     </header>

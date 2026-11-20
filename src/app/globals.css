@@ -844,6 +844,8 @@ body[data-pushed] .edge-fade { opacity: 0 !important; }
 /* The page words scroll sideways on every screen, so more pages can be added; the right edge fades out. */
 .giant-tabs.bt {
   flex-wrap: nowrap;
+  /* Room after the last word, so it can scroll fully clear of the fade on the right. */
+  padding-right: 0.5em;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -913,3 +915,148 @@ body[data-pushed] .edge-fade { opacity: 0 !important; }
 .bp-zoom:hover:not(:disabled) { background: rgb(255 255 255 / 0.1); color: #fff; }
 .bp-zoom:focus-visible { box-shadow: 0 0 0 2px rgb(255 255 255 / 0.4); }
 .bp-zoom:disabled { opacity: 0.35; cursor: default; }
+
+/* ---------------------------------------------------------------------------------------------------------
+   Blog post text: Inter at a reading size, grotesk section titles, monospace sub-sections (after claude.dev). */
+.post-body {
+  max-width: 660px;
+  font-size: 16.5px;
+  line-height: 1.72;
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+}
+@media (min-width: 640px) {
+  .post-body {
+    font-size: 18px;
+  }
+}
+.post-body > :first-child {
+  margin-top: 0;
+}
+.post-body p,
+.post-body ul,
+.post-body ol,
+.post-body pre,
+.post-body blockquote,
+.post-body figure,
+.post-body img {
+  margin-top: 1.1em;
+}
+.post-body h2,
+.post-body h3 {
+  color: var(--ink);
+  scroll-margin-top: 80px;
+}
+.post-body h2 {
+  font-family: var(--font-grotesk), var(--font-inter), sans-serif;
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 2.2em 0 0.6em;
+}
+.post-body h3 {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 500;
+  margin: 2em 0 0.7em;
+}
+.post-body h2 + p,
+.post-body h3 + p {
+  margin-top: 0;
+}
+.post-body a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--ink-3);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 150ms;
+}
+.post-body a:hover {
+  text-decoration-color: var(--ink);
+}
+.post-body strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.post-body ul,
+.post-body ol {
+  padding-left: 1.3em;
+}
+.post-body ul {
+  list-style: disc;
+}
+.post-body ol {
+  list-style: decimal;
+}
+.post-body li + li {
+  margin-top: 0.45em;
+}
+.post-body li::marker {
+  color: var(--ink-2);
+}
+.post-body code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--stage);
+  padding: 0.15em 0.4em;
+  border-radius: 5px;
+}
+.post-body pre {
+  background: var(--stage);
+  border-radius: 12px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+.post-body pre code {
+  background: none;
+  padding: 0;
+  font-size: 14px;
+}
+.post-body blockquote {
+  border-left: 2px solid var(--ink-3);
+  padding-left: 1em;
+  color: var(--ink-2);
+}
+.post-body img {
+  border-radius: 12px;
+  width: 100%;
+  height: auto;
+}
+.post-body hr {
+  border: 0;
+  border-top: 1px solid var(--hair);
+  margin: 2.4em 0;
+}
+
+/* Blog panorama: opens from a thin horizontal slit to full height while the picture settles out of a zoom. */
+@keyframes pano-open {
+  from {
+    clip-path: inset(46% 0 46% 0 round 20px);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round 20px);
+  }
+}
+@keyframes pano-settle {
+  from {
+    transform: scale(1.14);
+    filter: brightness(1.15) saturate(0.8);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+.pano-reveal {
+  animation: pano-open 1150ms cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+.pano-reveal-img {
+  animation: pano-settle 1800ms var(--ease-out-soft) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pano-reveal,
+  .pano-reveal-img {
+    animation: none;
+  }
+}
