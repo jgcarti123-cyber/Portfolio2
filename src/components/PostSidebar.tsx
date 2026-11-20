@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ListBullets, ShareNetwork } from "@phosphor-icons/react/dist/ssr";
 import type { Heading } from "@/lib/blog";
 
 const mono = "font-[family-name:var(--font-mono)]";
@@ -63,24 +64,30 @@ function Tree({ headings, active, onPick }: { headings: Heading[]; active: strin
 }
 
 /** A bar of fine dots that fills solid as you read. */
+function Dots({ value, className }: { value: number; className: string }) {
+  return (
+    <span
+      className={`relative overflow-hidden rounded-[2px] ${className}`}
+      role="progressbar"
+      aria-label="Reading progress"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      style={{
+        backgroundImage:
+          "repeating-linear-gradient(90deg, var(--ink-3) 0 1px, transparent 1px 3px), repeating-linear-gradient(0deg, var(--ink-3) 0 1px, transparent 1px 3px)",
+      }}
+    >
+      <span className="absolute inset-y-0 left-0 bg-[var(--ink)] transition-[width] duration-150" style={{ width: `${value}%` }} />
+    </span>
+  );
+}
+
 function Progress({ value, minutes }: { value: number; minutes: number }) {
   return (
     <div>
       <div className="flex items-center gap-2.5 text-[var(--ink-2)]">
-        <span
-          className="relative h-3.5 w-[180px] overflow-hidden rounded-[2px]"
-          role="progressbar"
-          aria-label="Reading progress"
-          aria-valuenow={value}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(90deg, var(--ink-3) 0 1px, transparent 1px 3px), repeating-linear-gradient(0deg, var(--ink-3) 0 1px, transparent 1px 3px)",
-          }}
-        >
-          <span className="absolute inset-y-0 left-0 bg-[var(--ink)] transition-[width] duration-150" style={{ width: `${value}%` }} />
-        </span>
+        <Dots value={value} className="h-3.5 w-[180px]" />
         <span className="tabular-nums">{value}%</span>
       </div>
       <div className="mt-1 uppercase">{minutes} min read</div>
@@ -131,7 +138,8 @@ export function PostSidebar({ headings, minutes, title, markdown }: Props) {
   const { active, progress } = useReading(headings);
   return (
     <aside
-      className={`sticky top-8 hidden h-[calc(100vh-64px)] flex-col justify-between self-start text-[13px] leading-[1.75] desktop:flex ${mono}`}
+      className={`fade-in sticky top-8 hidden h-[calc(100vh-64px)] flex-col justify-between self-start text-[13px] leading-[1.75] desktop:flex ${mono}`}
+      style={{ animationDelay: "120ms" }}
     >
       <div>
         {headings.length > 0 && (
@@ -153,24 +161,28 @@ export function PostSidebar({ headings, minutes, title, markdown }: Props) {
 }
 
 /** Phone and tablet: the same tree and share links, folded into two chips above the text. */
-export function PostChips({ headings, minutes, title, markdown }: Props) {
+export function PostChips({ headings, title, markdown }: Props) {
   const { active, progress } = useReading(headings);
   const [open, setOpen] = useState<"" | "tree" | "share">("");
   const chip = (on: boolean) =>
-    `cursor-pointer rounded-full px-3 py-1.5 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-neutral-300 ${on ? "bg-[var(--ink)] text-[var(--background)]" : "bg-[var(--stage)] text-[var(--ink)]"}`;
+    `flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-neutral-300 ${on ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--background)]" : "border-[var(--ink-3)] bg-[var(--surface)] text-[var(--ink)]"}`;
   return (
-    <div className={`sticky top-0 z-10 -mx-5 bg-background px-5 py-3 text-xs desktop:hidden ${mono}`}>
+    // Above the soft fade at the top of the window (z-30), which would otherwise wash the bar out.
+    <div className={`sticky top-0 z-[35] -mx-5 border-b border-[var(--hair)] bg-background py-3 pl-5 pr-16 text-xs desktop:hidden ${mono}`}>
       <div className="flex items-center gap-2">
         {headings.length > 0 && (
           <button type="button" aria-expanded={open === "tree"} onClick={() => setOpen(open === "tree" ? "" : "tree")} className={chip(open === "tree")}>
+            <ListBullets size={14} weight="bold" aria-hidden />
             Contents {open === "tree" ? "▴" : "▾"}
           </button>
         )}
         <button type="button" aria-expanded={open === "share"} onClick={() => setOpen(open === "share" ? "" : "share")} className={chip(open === "share")}>
+          <ShareNetwork size={14} weight="bold" aria-hidden />
           Share
         </button>
-        <span className="ml-auto tabular-nums text-[var(--ink-2)]">
-          {progress}% · {minutes} min
+        <span className="ml-auto flex min-w-0 items-center gap-2 text-[var(--ink-2)]">
+          <Dots value={progress} className="h-3 w-[clamp(44px,18vw,96px)]" />
+          <span className="tabular-nums">{progress}%</span>
         </span>
       </div>
       {open && (

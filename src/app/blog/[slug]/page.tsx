@@ -54,6 +54,11 @@ export default async function PostPage({ params }: Params) {
           <span>{post.tag}</span>
           <span aria-hidden>·</span>
           <time dateTime={post.date}>{formatDate(post.date)}</time>
+          {/* Phones show reading time here; desktop has it under the progress bar. */}
+          <span aria-hidden className="desktop:hidden">
+            ·
+          </span>
+          <span className="desktop:hidden">{post.minutes} min read</span>
           {post.draft && (
             <>
               <span aria-hidden>·</span>
@@ -69,13 +74,15 @@ export default async function PostPage({ params }: Params) {
         )}
       </header>
 
-      <div
-        className="fade-in mt-8 border-t border-[var(--hair)] pt-2 desktop:mt-14 desktop:grid desktop:grid-cols-[260px_1fr] desktop:gap-16 desktop:pt-8"
-        style={{ animationDelay: "120ms" }}
-      >
+      {/* No entrance animation on this wrapper: an animated parent would trap the phone bar beneath the
+          window's top fade. The sidebar and article animate in on their own. */}
+      <div className="mt-8 border-t border-[var(--hair)] pt-2 desktop:mt-14 desktop:grid desktop:grid-cols-[260px_1fr] desktop:gap-16 desktop:pt-8">
         <PostSidebar {...share} />
         <PostChips {...share} />
-        <article id="post-body" className="post-body mt-4 desktop:mt-0" dangerouslySetInnerHTML={{ __html: post.html }} />
+        <article
+          id="post-body"
+          className="post-body fade-in mt-4 desktop:mt-0"
+          style={{ animationDelay: "120ms" }} dangerouslySetInnerHTML={{ __html: post.html }} />
       </div>
     </main>
   );
