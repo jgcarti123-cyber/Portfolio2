@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { profile } from "@/data/site";
 import { getPosts } from "@/lib/blog";
+import { getPhotos } from "@/lib/photos";
+import { NamePhotos } from "./NamePhotos";
 import { Clock } from "./Clock";
 import { OnlineDot } from "./OnlineDot";
 import { SoundToggle, Toolbar } from "./Toolbar";
@@ -26,6 +28,7 @@ export function GiantHeader() {
           href="/"
           className="group/name block shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 md:pt-[1.6vw]"
         >
+          <NamePhotos photos={getPhotos()}>
           <h1 className="select-none font-[family-name:var(--font-grotesk)] text-[22px] font-medium leading-[0.95] tracking-[-0.03em] text-foreground md:text-[clamp(22px,2.3vw,36px)]">
             J
             <span className="transition-colors duration-150 group-hover/name:text-white/35">ohn</span>
@@ -38,6 +41,7 @@ export function GiantHeader() {
             <br />
             Tata Motors
           </p>
+          </NamePhotos>
         </Link>
         <div className="min-w-0 flex-1">
           <Toolbar blogCount={getPosts().length} />

@@ -1060,3 +1060,81 @@ body[data-pushed] .edge-fade { opacity: 0 !important; }
     animation: none;
   }
 }
+
+/* John's photos as a folding fan pinned beside his name (see NamePhotos.tsx). Each blade is drawn around the
+   rivet at its own origin, so moving, turning and scaling the blade swings it like a real fan. */
+.name-blade {
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  transition: transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.name-fan:not(.is-open) .name-blade {
+  transition-duration: 560ms;
+  transition-timing-function: cubic-bezier(0.55, 0, 0.3, 1);
+}
+.name-card {
+  background: #f4f2ee;
+  padding: 5px 5px 16px;
+  border-radius: 4px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.25),
+    0 18px 36px -14px rgb(0 0 0 / 0.6);
+  transition:
+    box-shadow 400ms,
+    translate 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.name-fan:not(.is-open) .name-card {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
+}
+/* The photo under the cursor stands out: it comes to the front and slides outward along its rib. */
+.name-card {
+  transition-property: box-shadow, translate, scale;
+  transition-duration: 400ms, 420ms, 420ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.name-fan.is-open .name-blade.is-hot .name-card {
+  translate: 0 -22px;
+  scale: 1.1;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.25),
+    0 30px 60px -16px rgb(0 0 0 / 0.75);
+}
+
+.name-rib {
+  width: 2px;
+  border-radius: 1px;
+  background: linear-gradient(#f1ebdf, #b8ac98);
+  box-shadow: 0 0 2px rgb(0 0 0 / 0.5);
+  opacity: 0;
+  transition: opacity 300ms;
+}
+.name-fan.is-open .name-rib {
+  opacity: 1;
+  transition-delay: 120ms;
+}
+.name-rivet {
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff, #a99c8c);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+  z-index: 100;
+  transform-origin: 6px 6px;
+  transition:
+    transform 720ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 300ms;
+}
+.name-fan:not(.is-open) .name-rivet {
+  opacity: 0;
+  transition-duration: 560ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .name-blade,
+  .name-rivet,
+  .name-rib {
+    transition: none !important;
+  }
+}
