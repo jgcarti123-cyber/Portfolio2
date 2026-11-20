@@ -3,9 +3,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 /**
- * The personal photos that fan out of John's name in the header. They live in public/Photos, which is
- * git-ignored, so they only exist on John's own machine; anywhere else this returns nothing and the name
- * shows no photos.
+ * The personal photos that fan out of John's name in the header, read from public/Photos (up to five). With
+ * no photos there, the name shows no fan.
  */
 
 /** ratio is width ÷ height (1 if it can't be read). */

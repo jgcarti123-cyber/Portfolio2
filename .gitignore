@@ -41,6 +41,3 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Personal photos for the name hover: local only, never committed.
-/public/Photos/
-/public/photos/
