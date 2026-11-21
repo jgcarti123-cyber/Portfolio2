@@ -1138,3 +1138,31 @@ body[data-pushed] .edge-fade { opacity: 0 !important; }
     transition: none !important;
   }
 }
+
+/* Blog list: with a mouse on a wide screen, the hovered row opens to show its cover and summary, and the others soften. */
+@media (hover: hover) and (min-width: 860px) {
+  .blog-row-open {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 520ms var(--ease-out-soft), opacity 360ms ease;
+  }
+  .blog-row[data-on] .blog-row-open,
+  .blog-row a:focus-visible .blog-row-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+  .blog-row > a {
+    transition: filter 300ms ease, opacity 300ms ease, background-color 200ms;
+  }
+  .blog-row[data-on] > a {
+    background-color: var(--stage);
+  }
+  .blog-rows[data-active] .blog-row:not([data-on]) > a {
+    filter: blur(2px);
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blog-row-open, .blog-row > a { transition: none !important; }
+}

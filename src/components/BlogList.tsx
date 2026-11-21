@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
@@ -21,12 +21,16 @@ type Item = {
 
 const mono = "font-[family-name:var(--font-mono)]";
 
-/** The newest post as a wide card, then every other post as one row each, filtered by tag. */
+/** Every post as one numbered row, filtered by tag. */
 export function BlogList({ posts }: { posts: Item[] }) {
   const tags = ["All", ...Array.from(new Set(posts.map((p) => p.tag)))];
   const [tag, setTag] = useState("All");
   const shown = tag === "All" ? posts : posts.filter((p) => p.tag === tag);
-  const [first, ...rest] = shown;
+  // The open row stays open until another row is hovered or the mouse leaves the list, and the list keeps
+  // its tallest height meanwhile, so rows sliding up as one closes never pull the next out from under the mouse.
+  const [open, setOpen] = useState<string | null>(null);
+  const [floor, setFloor] = useState(0);
+  const list = useRef<HTMLOListElement>(null);
 
   if (!posts.length)
     return <p className={`fade-in pt-1 text-[15px] text-[var(--ink-2)]`}>The first post is on its way.</p>;
@@ -51,52 +55,36 @@ export function BlogList({ posts }: { posts: Item[] }) {
         ))}
       </div>
 
-      {first && (
-        <Link
-          href={`/blog/${first.slug}`}
-          style={delay(60)}
-          className="fade-in group/feat block border-b border-[var(--hair)] pb-7 pt-6 outline-none"
-        >
-          <div className="relative aspect-[2.6/1] overflow-hidden rounded-2xl bg-[var(--stage)] ring-offset-4 ring-offset-[var(--background)] group-focus-visible/feat:ring-2 group-focus-visible/feat:ring-neutral-300">
-            <Image
-              src={first.cover}
-              alt=""
-              fill
-              quality={92}
-              sizes="(min-width: 860px) 760px, 100vw"
-              className="object-cover transition-transform duration-700 ease-[var(--ease-out-soft)] group-hover/feat:scale-[1.03]"
-              style={{ objectPosition: first.coverPosition }}
-            />
-          </div>
-          <div className={`mt-4 flex items-center gap-2.5 text-xs uppercase text-[var(--ink-2)] ${mono}`}>
-            <span className="tabular-nums text-[var(--ink)]">01</span>
-            <span className="rounded-md bg-[var(--stage)] px-1.5 py-0.5 normal-case text-[var(--ink)]">
-              {first.draft ? "Draft" : "Latest"}
-            </span>
-            <span>{first.tag}</span>
-            <span aria-hidden>·</span>
-            <span>{first.minutes} min</span>
-            <span className="ml-auto">{first.dateLabel}</span>
-          </div>
-          <h2 className="mt-3 max-w-[640px] font-[family-name:var(--font-grotesk)] text-[26px] font-medium leading-[1.1] tracking-[-0.025em] text-[var(--ink)] sm:text-[34px]">
-            {first.title}
-          </h2>
-          {first.summary && (
-            <p className="mt-3 max-w-[600px] text-[15px] leading-[1.55] text-[var(--ink-2)]">{first.summary}</p>
-          )}
-        </Link>
-      )}
-
-      {/* Every other post as a numbered contents line; the arrow slides in on hover. */}
-      <ol>
-        {rest.map((p, i) => (
-          <li key={p.slug} className="fade-in" style={delay(120 + i * 40)}>
+      {/* Every post as a numbered line. With a mouse, the hovered line opens to show its cover and summary while the others soften. */}
+      <ol
+        ref={list}
+        className="blog-rows pt-2"
+        data-active={open ? "" : undefined}
+        style={open ? { minHeight: floor } : undefined}
+        onPointerLeave={() => {
+          setOpen(null);
+          setFloor(0);
+        }}
+      >
+        {shown.map((p, i) => (
+          <li
+            key={p.slug}
+            className="blog-row fade-in"
+            style={delay(60 + i * 40)}
+            data-on={open === p.slug ? "" : undefined}
+            onPointerEnter={(e) => {
+              if (e.pointerType !== "mouse") return;
+              setOpen(p.slug);
+              // Measure once the row has finished opening and keep the tallest height seen.
+              setTimeout(() => setFloor((f) => Math.max(f, list.current?.offsetHeight ?? 0)), 560);
+            }}
+          >
             <Link
               href={`/blog/${p.slug}`}
               className="group/row -mx-3 grid grid-cols-[32px_1fr_auto] items-baseline gap-x-4 gap-y-1 rounded-lg border-b border-[var(--hair)] px-3 py-4 outline-none transition-colors duration-200 hover:bg-[var(--stage)] focus-visible:bg-[var(--stage)] sm:grid-cols-[40px_112px_1fr_100px_52px_20px]"
             >
               <span className={`text-[12.5px] tabular-nums text-[var(--ink-2)] transition-colors duration-200 group-hover/row:text-[var(--ink)] ${mono}`}>
-                {String(i + 2).padStart(2, "0")}
+                {String(i + 1).padStart(2, "0")}
               </span>
               <span className={`order-3 col-start-2 col-span-2 text-[12.5px] text-[var(--ink-2)] sm:order-none sm:col-span-1 sm:col-start-auto ${mono}`}>
                 {p.dateLabel}
@@ -114,6 +102,26 @@ export function BlogList({ posts }: { posts: Item[] }) {
                 aria-hidden
                 className="self-center -translate-x-2 text-[var(--ink)] opacity-0 transition-all duration-300 ease-[var(--ease-out-soft)] group-hover/row:translate-x-0 group-hover/row:opacity-100 group-focus-visible/row:translate-x-0 group-focus-visible/row:opacity-100"
               />
+              <div aria-hidden className="blog-row-open col-span-full hidden">
+                <div className="overflow-hidden">
+                  <div className="grid grid-cols-[40px_112px_1fr] gap-x-4 pb-1 pt-4">
+                    <div className="relative col-start-2 col-span-2 aspect-[3.4/1] overflow-hidden rounded-xl bg-[var(--background)]">
+                      <Image
+                        src={p.cover}
+                        alt=""
+                        fill
+                        quality={92}
+                        sizes="620px"
+                        className="object-cover transition-transform duration-700 ease-[var(--ease-out-soft)] group-hover/row:scale-[1.03]"
+                        style={{ objectPosition: p.coverPosition }}
+                      />
+                    </div>
+                    {p.summary && (
+                      <p className="col-start-2 col-span-2 mt-3 max-w-[560px] text-[15px] leading-[1.55] text-[var(--ink-2)]">{p.summary}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </Link>
           </li>
         ))}
