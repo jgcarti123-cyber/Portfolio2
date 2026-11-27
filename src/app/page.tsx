@@ -42,8 +42,10 @@ export default function Home() {
     <ProjectsProvider projects={projects}>
       <div className="group/page">
         <main className="pb-32">
-          {/* Intro, as before: the words on the left, the graph and Connect 4 on the right */}
-          <div className="mx-auto mt-10 flex max-w-[900px] flex-col gap-10 px-5 sm:px-8 desktop:grid desktop:grid-cols-[380px_320px] desktop:justify-center desktop:gap-x-16">
+          {/* On wide screens the intro becomes a column on the left and the Work bento fills the rest from the top. */}
+          <div className="xl:mx-auto xl:mt-11 xl:grid xl:max-w-[1440px] xl:grid-cols-[330px_1fr] xl:items-start xl:gap-x-14 xl:px-8">
+          {/* Intro: the words, then the graph and Connect 4 (beside them on tablets, under them in the column) */}
+          <div className="mx-auto mt-10 flex max-w-[900px] flex-col gap-10 px-5 sm:px-8 desktop:grid desktop:grid-cols-[380px_320px] desktop:justify-center desktop:gap-x-16 xl:sticky xl:top-7 xl:m-0 xl:flex xl:max-w-none xl:gap-8 xl:p-0">
             <div className="fade-in" style={delay(50)}>
               <p className="font-[family-name:var(--font-grotesk)] text-[26px] font-medium leading-[1.12] tracking-[-0.03em] text-foreground sm:text-[27px]">
                 Agents with judgment.
@@ -72,10 +74,11 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Projects: a full-width bento */}
-          <section className="mx-auto mt-12 max-w-[1440px] px-5 sm:px-8" aria-labelledby="work">
+          {/* Projects: a bento, full width under the intro on smaller screens */}
+          <section className="mx-auto mt-12 max-w-[1440px] px-5 sm:px-8 xl:m-0 xl:max-w-none xl:p-0" aria-labelledby="work">
             <WorkSection projects={projects} />
           </section>
+          </div>
 
           {/* Experience and Connect, as before */}
           <div className="mx-auto mt-10 flex max-w-[900px] flex-col px-5 sm:px-8 desktop:grid desktop:grid-cols-[320px_320px] desktop:justify-center desktop:gap-x-16">

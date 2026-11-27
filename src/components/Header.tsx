@@ -6,24 +6,24 @@ import { getPhotos } from "@/lib/photos";
 import { NamePhotos } from "./NamePhotos";
 import { Clock } from "./Clock";
 import { OnlineDot } from "./OnlineDot";
-import { SoundToggle, Toolbar } from "./Toolbar";
+import { NavStrip, SoundToggle, Toolbar } from "./Toolbar";
 
 /**
  * The top quarter of every page: John's name stacked like a logo, with the pages as huge words starting right
- * beside it and running off the window edge, all in white over a photo of the sky. Clock and sound sit in the
- * top-right corner. On phones the name sits above the words instead. It lives in the root layout, so it stays
+ * beside it and running off the window edge, all in white over a photo of the sky. A thin strip along the top
+ * holds the pages, the contact links, sound and the clock. On phones the name sits above the words instead. It lives in the root layout, so it stays
  * put while the page below it changes.
  */
 export function GiantHeader() {
   return (
-    <header className="giant-head on-photo dark fade-in relative isolate overflow-hidden px-5 pt-5 sm:px-8 md:pt-7">
+    <header className="giant-head on-photo dark fade-in relative isolate overflow-hidden px-5 pt-5 sm:px-8 md:pt-[22px]">
       {/* The sky behind the name and the page words. The header runs in dark colours so its text sits in white. */}
       <Image src="/header-sky.jpg" alt="" fill priority quality={90} sizes="100vw" className="-z-10 object-cover" />
-      <div className="absolute right-5 top-5 flex items-center gap-3 sm:right-8 md:top-7">
+      <NavStrip blogCount={getPosts().length}>
         <SoundToggle />
         <Clock timeZone={profile.timeZone} />
-      </div>
-      <div className="flex flex-col gap-6 md:mt-10 md:flex-row md:items-start md:gap-[2.2vw]">
+      </NavStrip>
+      <div className="mt-6 flex flex-col gap-6 md:mt-8 md:flex-row md:items-start md:gap-[2.2vw]">
         <Link
           href="/"
           className="group/name block shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 md:pt-[1.6vw]"

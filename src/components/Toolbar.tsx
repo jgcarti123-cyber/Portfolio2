@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useRef, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BigTabs } from "./BigTabs";
 import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react/dist/ssr";
-import { featured, work } from "@/data/site";
+import { connect, featured, work } from "@/data/site";
 import { shelf } from "@/data/shelf";
 import { skillGroups } from "@/data/skills";
 import { playTick, setSoundEnabled, useSoundEnabled } from "@/lib/sound";
@@ -41,14 +42,18 @@ const counts = {
   skills: skillGroups.reduce((n, g) => n + g.skills.length, 0),
 };
 
+function useActivePage(): ActivePage {
+  const pathname = usePathname();
+  return pages.find((p) => p.href !== "/" && pathname.startsWith(p.href))?.page ?? "home";
+}
+
 /**
- * The pages as huge words with counts (after things.bharadwhat.com), sized to run off the right edge of the
- * window on wide screens. On phones the row scrolls sideways instead.
+ * Going to another page: the header stays, the page under it softens and lifts away, then the next one settles in
+ * with its own staggered entrance. Returns a click handler for any element holding page links.
  */
-export function Toolbar({ blogCount }: { blogCount: number }) {
+function usePageLeave() {
   const pathname = usePathname();
   const router = useRouter();
-  const active: ActivePage = pages.find((p) => p.href !== "/" && pathname.startsWith(p.href))?.page ?? "home";
   const leaving = useRef<Animation | null>(null);
 
   // The new page has arrived: drop whatever is left of the old one's exit.
@@ -57,30 +62,11 @@ export function Toolbar({ blogCount }: { blogCount: number }) {
     leaving.current = null;
   }, [pathname]);
 
-  // The words run off the right edge, so slide the row until the current page's word is in view (and back to
-  // the start for Home). Instant on first load, smooth when moving between pages.
-  const nav = useRef<HTMLElement>(null);
-  const placed = useRef(false);
-  useEffect(() => {
-    const row = nav.current?.querySelector<HTMLElement>(".giant-tabs");
-    const word = row?.querySelector<HTMLElement>("[data-active]");
-    if (!row || !word) return;
-    const fade = 96;
-    const start = word.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
-    const right = start + word.offsetWidth + fade - row.clientWidth;
-    const left = row.scrollLeft > start ? start : Math.max(row.scrollLeft, right);
-    const target = active === "home" ? 0 : Math.max(0, left);
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    row.scrollTo({ left: target, behavior: placed.current && !reduce ? "smooth" : "instant" });
-    placed.current = true;
-  }, [active]);
-
-  // Going to another page: the header stays, the page under it softens and lifts away, then the next one
-  // settles in with its own staggered entrance.
-  function onNavigate(e: MouseEvent<HTMLElement>) {
+  return function onNavigate(e: MouseEvent<HTMLElement>) {
     const a = (e.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
     if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const href = a.getAttribute("href")!;
+    if (!href.startsWith("/")) return;
     const main = document.querySelector<HTMLElement>("#site main");
     if (href === pathname || leaving.current) return e.preventDefault();
     if (!main || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -102,7 +88,34 @@ export function Toolbar({ blogCount }: { blogCount: number }) {
     };
     leaving.current.onfinish = go;
     setTimeout(go, 320);
-  }
+  };
+}
+
+/**
+ * The pages as huge words with counts (after things.bharadwhat.com), sized to run off the right edge of the
+ * window on wide screens. On phones the row scrolls sideways instead.
+ */
+export function Toolbar({ blogCount }: { blogCount: number }) {
+  const active = useActivePage();
+  const onNavigate = usePageLeave();
+
+  // The words run off the right edge, so slide the row until the current page's word is in view (and back to
+  // the start for Home). Instant on first load, smooth when moving between pages.
+  const nav = useRef<HTMLElement>(null);
+  const placed = useRef(false);
+  useEffect(() => {
+    const row = nav.current?.querySelector<HTMLElement>(".giant-tabs");
+    const word = row?.querySelector<HTMLElement>("[data-active]");
+    if (!row || !word) return;
+    const fade = 96;
+    const start = word.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+    const right = start + word.offsetWidth + fade - row.clientWidth;
+    const left = row.scrollLeft > start ? start : Math.max(row.scrollLeft, right);
+    const target = active === "home" ? 0 : Math.max(0, left);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    row.scrollTo({ left: target, behavior: placed.current && !reduce ? "smooth" : "instant" });
+    placed.current = true;
+  }, [active]);
 
   // Mouse users can drag the row sideways; trackpads and touch scroll it natively. A drag never counts as a click.
   const drag = useRef<{ x: number; left: number; moved: boolean; row: HTMLElement } | null>(null);
@@ -158,6 +171,52 @@ export function Toolbar({ blogCount }: { blogCount: number }) {
         items={pages.map(({ page, href, label }) => ({ key: page, label, href, count: page === "blog" ? blogCount : counts[page] }))}
       />
     </nav>
+  );
+}
+
+/**
+ * A thin line along the top of the header: the pages as small links on the left, and Email, GitHub and LinkedIn
+ * on the right, before the sound toggle and the clock. It stops short of the pull cord's bulb.
+ */
+export function NavStrip({ blogCount, children }: { blogCount: number; children: ReactNode }) {
+  const active = useActivePage();
+  const onNavigate = usePageLeave();
+  const link =
+    "rounded-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-white/40";
+
+  return (
+    <div className="relative z-[2] mr-9 flex items-center gap-x-5 whitespace-nowrap border-b [text-shadow:0_1px_10px_rgb(0_0_0/0.45)] border-white/[0.14] pb-3.5 text-[13px] sm:mr-14 md:gap-x-[22px]">
+      <nav aria-label="Pages" onClickCapture={onNavigate} className="flex items-center gap-x-4 md:gap-x-[22px]">
+        {pages.map(({ page, href, label }) => (
+          <Link
+            key={page}
+            href={href}
+            aria-current={page === active ? "page" : undefined}
+            className={`${link} inline-flex items-baseline gap-[5px] ${page === active ? "text-white" : "text-white/60 hover:text-white"}`}
+          >
+            {label}
+            <sup className="top-[-0.2em] text-[10px] tabular-nums opacity-60">{page === "blog" ? blogCount : counts[page]}</sup>
+          </Link>
+        ))}
+      </nav>
+      <span className="flex-1" />
+      <div className="hidden items-center gap-x-[22px] md:flex">
+        {connect.map((c) => (
+          <a
+            key={c.subtitle}
+            href={c.href}
+            className={`${link} text-white/60 hover:text-white`}
+            {...(c.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
+          >
+            {c.subtitle} <span className="opacity-60">↗</span>
+          </a>
+        ))}
+      </div>
+      {/* On phones there is only room for the sound toggle; the clock joins it from small tablets up. */}
+      <div className="flex items-center gap-3 md:ml-3.5 md:border-l md:border-white/25 md:pl-[18px] max-sm:[&>[data-ground=clock]]:hidden">
+        {children}
+      </div>
+    </div>
   );
 }
 
