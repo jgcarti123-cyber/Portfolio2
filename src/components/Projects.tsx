@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, ArrowUpRight } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Play } from "@phosphor-icons/react/dist/ssr";
 import { architectures } from "@/data/architecture";
 import type { Project } from "@/data/site";
 import { tellMascot } from "@/lib/mascot";
@@ -57,162 +57,236 @@ export function ProjectsProvider({ projects, children }: { projects: Project[]; 
   );
 }
 
-// ---- Bento ------------------------------------------------------------------------------------------
+// ---- Work ---------------------------------------------------------------------------------------------
 
 function tileRect(slug: string) {
   return document.querySelector(`[data-project="${slug}"]`)?.getBoundingClientRect();
 }
 
-/** A project's tile: calm on the outside, with a small window onto its live blueprint. */
-function Tile({
-  project,
-  hero = false,
-  large = false,
-  className = "",
-}: {
-  project: Project;
-  hero?: boolean;
-  /** A two-row tile without the hero's oversized title, for when a filter leaves two side by side. */
-  large?: boolean;
-  className?: string;
-}) {
-  const open = useOpenProject();
-  const arch = architectures[project.slug];
-  const stats = arch?.stats ?? [];
-  const accent = accentOf(project);
-
+/** Where a project comes from and when, with its colour dot. */
+function Meta({ project, className = "" }: { project: Project; className?: string }) {
   return (
-    <div
-      data-project={project.slug}
-      className={`group relative flex overflow-hidden rounded-[22px] bg-[var(--stage)] p-2 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 has-[button:active]:scale-[0.995] ${
-        hero || large ? "min-h-[300px] flex-col-reverse gap-2 sm:flex-row" : "min-h-[220px] gap-2"
-      } ${className}`}
-      style={grotesk}
-    >
-      <div className={`flex flex-1 flex-col justify-between ${hero || large ? "p-5 sm:p-6" : "p-4"}`} aria-hidden>
-        <span className="flex items-center gap-2 text-[12px] text-[var(--ink-2)]">
-          <span className="size-1.5 rounded-full" style={{ background: accent }} />
-          {project.role ?? "Personal"} · {project.year}
-        </span>
-        <span className="block">
-          <span
-            className={`block font-medium tracking-[-0.03em] text-[var(--ink)] ${
-              hero ? "text-[clamp(36px,4vw,56px)] leading-[0.95]" : large ? "text-[34px] leading-[1.05]" : "text-[22px] leading-6"
-            }`}
-          >
-            {project.title}
-          </span>
-          <span className={`mt-1.5 block text-[var(--ink-2)] ${hero || large ? "text-[16px]" : "text-[14px] leading-5"}`}>{project.tagline}</span>
-          {hero || large ? (
-            <span className="mt-7 flex flex-wrap gap-x-7 gap-y-3">
-              {stats.slice(0, hero ? 3 : 2).map((s) => (
-                <span key={s.label} className="block">
-                  <span className="block text-[24px] font-medium leading-none tracking-[-0.03em] tabular-nums text-[var(--ink)]">{s.value}</span>
-                  <span className="mt-1 block text-[12px] text-[var(--ink-2)]">{s.label}</span>
-                </span>
-              ))}
-            </span>
-          ) : (
-            stats[0] && (
-              <span className="mt-4 block text-[12px] text-[var(--ink-2)]">
-                <span className="font-medium text-[var(--ink)]">{stats[0].value}</span> {stats[0].label}
-              </span>
-            )
-          )}
-        </span>
+    <span className={`flex items-center gap-2 text-[12px] text-[var(--ink-2)] ${className}`}>
+      <span className="size-1.5 rounded-full" style={{ background: accentOf(project) }} />
+      {project.role ?? "Personal"} · {project.year}
+    </span>
+  );
+}
+
+/** The whole of a project's block opens its full view; laid over the top so the rest can stay plain markup. */
+function OpenButton({ project, rounded }: { project: Project; rounded: string }) {
+  const open = useOpenProject();
+  return (
+    <button
+      type="button"
+      data-nudge
+      data-ground="card"
+      onClick={() => open(project.slug, tileRect(project.slug))}
+      aria-haspopup="dialog"
+      aria-label={`${project.title}, ${project.tagline}`}
+      className={`absolute inset-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-2)] ${rounded}`}
+    />
+  );
+}
+
+/**
+ * The lead project's loop: plays while it is on screen and holds still otherwise, or for anyone who asked for
+ * less motion (they see its first frame).
+ */
+function Loop({ teaser }: { teaser: NonNullable<Project["teaser"]> }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const seen = new IntersectionObserver(([e]) => (e.isIntersecting ? v.play().catch(() => {}) : v.pause()), {
+      threshold: 0.25,
+    });
+    seen.observe(v);
+    return () => seen.disconnect();
+  }, []);
+  return (
+    <video
+      ref={ref}
+      src={teaser.video}
+      poster={teaser.poster}
+      muted
+      loop
+      playsInline
+      preload="metadata"
+      aria-hidden
+      className="absolute inset-0 size-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.02]"
+    />
+  );
+}
+
+/**
+ * Swiggy has no screenshots yet, so its thumbnail is drawn: a photo dropped into the chat turning into an
+ * Instamart cart the person still has to place. Laid out large and shrunk to fit, like a screenshot.
+ */
+function SwiggyArt() {
+  const items = [
+    ["Paneer 200g", "₹95"],
+    ["Fresh cream", "₹62"],
+    ["Butter 100g", "₹56"],
+    ["Tomato 1kg", "₹38"],
+  ];
+  return (
+    <div className="flex size-full items-center justify-center bg-[radial-gradient(120%_90%_at_70%_10%,#ff9a3d,#fc8019_40%,#c2410c)]" aria-hidden>
+      <div className="w-[78%] rotate-[-3deg] rounded-[20px] bg-white p-3.5 text-[#1c1917] shadow-[0_30px_60px_-20px_rgb(80_20_0/0.55)]">
+        <div className="ml-auto h-[64px] w-[104px] rounded-[12px] bg-[linear-gradient(135deg,#fde68a,#f59e0b_55%,#9a3412)]" />
+        <p className="mt-2.5 text-[12px] leading-snug text-[#57534e]">
+          Found <b className="font-semibold text-[#1c1917]">paneer butter masala</b>. On Instamart:
+        </p>
+        {items.map(([name, price]) => (
+          <div key={name} className="flex items-center justify-between border-t border-[#f1efe9] py-1.5 text-[12px]">
+            <span>{name}</span>
+            <span className="text-[#78716c]">{price}</span>
+          </div>
+        ))}
+        <div className="mt-2 flex h-8 items-center justify-between rounded-[10px] bg-[#fc8019] px-3 text-[12px] font-semibold text-white">
+          <span>Added to cart</span>
+          <span>₹251</span>
+        </div>
       </div>
-      {arch && (
-        <Blueprint
-          mini
-          arch={arch}
-          accent={accent}
-          video={hero ? project.video : undefined}
-          className={`shrink-0 rounded-[16px] ${hero ? "h-[220px] sm:h-auto sm:w-[56%]" : large ? "h-[220px] sm:h-auto sm:w-[52%]" : "w-[44%]"}`}
-        />
-      )}
-      <span className="pointer-events-none absolute right-4 top-4 flex size-8 items-center justify-center rounded-full bg-white/90 text-black opacity-0 shadow-sm transition-all duration-300 group-hover:opacity-100 group-hover:rotate-45 group-has-[button:focus-visible]:opacity-100">
-        <ArrowUpRight size={14} weight="bold" />
-      </span>
-      {/* The whole tile is one button, laid over the top so the blueprint can stay plain markup. */}
-      <button
-        type="button"
-        data-nudge
-        data-ground="card"
-        onClick={() => open(project.slug, tileRect(project.slug))}
-        aria-haspopup="dialog"
-        aria-label={`${project.title}, ${project.tagline}`}
-        className="absolute inset-0 cursor-pointer rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink-2)]"
-      />
     </div>
   );
 }
 
-type Filter = "all" | "work" | "personal";
-const FILTERS: { value: Filter; label: string; keep: (p: Project) => boolean }[] = [
-  { value: "all", label: "All", keep: () => true },
-  { value: "work", label: "Tata Motors", keep: isWork },
-  { value: "personal", label: "Personal", keep: (p) => !isWork(p) },
-];
+/** A small picture for a project row: its website's first screen, a screenshot, or a drawing. */
+function Thumb({ project }: { project: Project }) {
+  const picture = project.site?.preview ?? project.images?.[0] ?? project.image;
+  if (picture)
+    return (
+      <Image
+        src={picture}
+        alt=""
+        width={1600}
+        height={1000}
+        sizes="(min-width: 1024px) 380px, 240px"
+        className="absolute inset-0 size-full object-cover object-top"
+      />
+    );
+  if (project.slug === "swiggy-agent")
+    return (
+      <div className="h-[250%] w-[250%] origin-top-left scale-[0.4] lg:h-[160%] lg:w-[160%] lg:scale-[0.625]">
+        <SwiggyArt />
+      </div>
+    );
+  const arch = architectures[project.slug];
+  return arch ? <Blueprint mini arch={arch} accent={accentOf(project)} className="size-full" /> : null;
+}
 
 /**
- * The Work section: the title with a filter beside it, over a compact grid. Showing everything, AIVA takes the
- * top-left two-by-two; filtered down, each project gets the large tile so the grid keeps its height.
+ * The lead project as a piece of glass: its loop fills the card and the caption is a frosted sheet over the bottom,
+ * the picture moving behind it. A light rim, a diagonal sheen and a soft glow in the project's colour make it read
+ * as an object. On wide screens it stretches to the height of the column beside it; on phones the caption sits
+ * under the loop instead of over it.
  */
-export function WorkSection({ projects }: { projects: Project[] }) {
-  const [filter, setFilter] = useState<Filter>("all");
-  const shown = projects.filter(FILTERS.find((f) => f.value === filter)!.keep);
-  const all = filter === "all";
-
+function Lead({ project }: { project: Project }) {
+  const stats = architectures[project.slug]?.stats.slice(0, 3) ?? [];
   return (
-    <>
-      <div className="fade-in flex flex-wrap items-end gap-x-8 gap-y-4" style={{ animationDelay: "150ms" }}>
-        <h2
-          id="work"
-          data-ground="Featured"
-          className="flex items-start font-[family-name:var(--font-grotesk)] text-[44px] font-medium leading-none tracking-[-0.035em] text-foreground"
-        >
-          Work
-          <sup className="ml-1 mt-1 text-[12px] font-normal tracking-normal text-neutral-400">{shown.length}</sup>
-        </h2>
-        <div role="tablist" aria-label="Filter projects" className="-ml-1 flex gap-1 font-[family-name:var(--font-grotesk)]">
-          {FILTERS.map((f) => {
-            const on = f.value === filter;
-            const count = projects.filter(f.keep).length;
-            return (
-              <button
-                key={f.value}
-                type="button"
-                role="tab"
-                aria-selected={on}
-                onClick={() => setFilter(f.value)}
-                className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[15px] tracking-[-0.01em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ink-2)] ${
-                  on ? "bg-[var(--stage)] text-[var(--ink)]" : "text-[var(--ink-2)] hover:text-[var(--ink)]"
-                }`}
-              >
-                {f.label}
-                <span className="text-[12px] tabular-nums text-neutral-400">{count}</span>
-              </button>
-            );
-          })}
+    <div
+      data-project={project.slug}
+      className="lead-card group relative flex h-full flex-col overflow-hidden rounded-[24px]"
+      style={{ ...grotesk, "--accent": accentOf(project) } as CSSProperties}
+    >
+      <div className="relative aspect-video overflow-hidden bg-[var(--stage)] sm:aspect-auto sm:min-h-[360px] sm:flex-1 lg:min-h-[400px]">
+        {project.teaser ? <Loop teaser={project.teaser} /> : <Thumb project={project} />}
+      </div>
+      <div className="relative flex flex-col sm:absolute sm:inset-x-0 sm:bottom-0">
+        <span className="pointer-events-none absolute bottom-full right-3 mb-3 inline-flex h-8 items-center gap-1.5 rounded-full bg-black/55 px-3 text-[12.5px] font-medium text-white backdrop-blur-md transition-colors duration-300 group-hover:bg-black/75">
+          <Play size={11} weight="fill" aria-hidden />
+          Watch demo
+        </span>
+        <div className="lead-glass flex flex-wrap items-end justify-between gap-x-6 gap-y-4 px-[22px] pb-[22px] pt-5">
+          <div>
+            <Meta project={project} />
+            <p className="mt-1.5 text-[26px] font-medium leading-none tracking-[-0.03em] text-[var(--ink)]">{project.title}</p>
+            <p className="mt-1.5 text-[14px] text-[var(--ink-2)]">{project.tagline}</p>
+          </div>
+          <div className="flex gap-6">
+            {stats.map((s) => (
+              <p key={s.label} className="text-[12px] text-[var(--ink-2)]">
+                <span className="block text-[17px] font-medium leading-tight tracking-[-0.02em] tabular-nums text-[var(--ink)]">{s.value}</span>
+                {s.label}
+              </p>
+            ))}
+          </div>
         </div>
       </div>
-      <div
-        key={filter}
-        className={`mt-6 grid gap-3 lg:auto-rows-[228px] ${all ? "md:grid-cols-2 lg:grid-cols-3" : shown.length > 1 ? "lg:grid-cols-2" : ""}`}
+      <span aria-hidden className="lead-sheen pointer-events-none absolute inset-0 rounded-[inherit]" />
+      <span aria-hidden className="lead-rim pointer-events-none absolute inset-0 rounded-[inherit]" />
+      <OpenButton project={project} rounded="rounded-[24px]" />
+    </div>
+  );
+}
+
+/**
+ * Every other project: a slim row (small picture, meta, name, what it is) on smaller screens, and on wide screens a
+ * card whose picture grows to fill its half of the column beside the lead.
+ */
+function Row({ project }: { project: Project }) {
+  return (
+    <div
+      data-project={project.slug}
+      className="group relative -mx-2.5 grid w-full grid-cols-[118px_1fr_auto] items-center gap-4 rounded-[18px] p-2.5 transition-[background-color,box-shadow,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[var(--stage)] lg:m-0 lg:h-full lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto] lg:items-stretch lg:gap-3 lg:rounded-[22px] lg:bg-[var(--stage)] lg:p-2 lg:pb-3.5 lg:hover:-translate-y-0.5 lg:hover:shadow-[0_22px_40px_-28px_rgb(0_0_0/0.35)]"
+      style={grotesk}
+    >
+      <div className="relative h-20 overflow-hidden rounded-[12px] bg-[var(--stage)] shadow-[0_0_0_1px_var(--hair)] lg:h-auto lg:min-h-0 lg:rounded-[15px]">
+        <div className="absolute inset-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]">
+          <Thumb project={project} />
+        </div>
+      </div>
+      <div className="min-w-0 lg:px-2">
+        <Meta project={project} className="text-[11.5px]" />
+        <p className="mt-1 text-[18px] font-medium tracking-[-0.025em] text-[var(--ink)]">{project.title}</p>
+        <p className="mt-0.5 truncate text-[13px] text-[var(--ink-2)]">{project.tagline}</p>
+      </div>
+      <ArrowUpRight
+        size={15}
+        aria-hidden
+        className="mr-1.5 text-[var(--ink-2)] opacity-0 transition-all duration-300 group-hover:rotate-45 group-hover:opacity-100 lg:absolute lg:bottom-[22px] lg:right-[18px] lg:mr-0 [@media(hover:none)]:opacity-60"
+      />
+      <OpenButton project={project} rounded="rounded-[18px] lg:rounded-[22px]" />
+    </div>
+  );
+}
+
+/**
+ * The Work section: the lead project as a glass card with its loop and figures, and the rest beside it filling the
+ * same height (under it, as slim rows, on smaller screens). Every block opens the project's full view.
+ */
+export function WorkSection({ projects }: { projects: Project[] }) {
+  const [lead, ...rest] = projects;
+  return (
+    <>
+      <h2
+        id="work"
+        data-ground="Featured"
+        className="fade-in flex items-start font-[family-name:var(--font-grotesk)] text-[44px] font-medium leading-none tracking-[-0.035em] text-foreground"
+        style={{ animationDelay: "150ms" }}
       >
-        {shown.map((p, i) => {
-          const hero = p.slug === "aiva";
-          const large = !all && !hero;
-          return (
-            <div
-              key={p.slug}
-              className={`fade-in flex ${hero || large ? "lg:row-span-2" : ""} ${all && hero ? "md:col-span-2" : ""}`}
-              style={{ animationDelay: `${(all ? 200 : 0) + i * 60}ms` }}
-            >
-              <Tile project={p} hero={hero} large={large} className="w-full" />
+        Work
+        <sup className="ml-1 mt-1 text-[12px] font-normal tracking-normal text-neutral-400">{projects.length}</sup>
+      </h2>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr] lg:items-stretch lg:gap-[26px]">
+        <div className="fade-in relative isolate" style={{ animationDelay: "200ms" }}>
+          {lead && (
+            <>
+              <div aria-hidden className="lead-glow" style={{ "--accent": accentOf(lead) } as CSSProperties} />
+              <Lead project={lead} />
+            </>
+          )}
+        </div>
+        {/* On wide screens this column takes the lead's height rather than adding its own. */}
+        <div className="flex flex-col lg:grid lg:h-0 lg:min-h-full lg:auto-rows-fr lg:gap-3.5">
+          {rest.map((p, i) => (
+            <div key={p.slug} className="fade-in lg:flex lg:min-h-0" style={{ animationDelay: `${260 + i * 60}ms` }}>
+              {i > 0 && <div className="my-1.5 h-px bg-[var(--hair)] lg:hidden" />}
+              <Row project={p} />
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </>
   );

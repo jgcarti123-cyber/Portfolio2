@@ -14,7 +14,7 @@ import { withGallery } from "@/lib/gallery";
 export const revalidate = 3600;
 
 const STEP = 25;
-/** Bento order: AIVA leads, then sizes alternate so the grid fills (see SPOTS in Projects.tsx). */
+/** Work order: the first is the lead (a loop with its figures), the rest are rows beside it. */
 const ORDER = ["aiva", "prim-pets", "swiggy-agent"];
 /** What "Lately:" cycles through under the headline. */
 const LATELY = [
@@ -42,7 +42,7 @@ export default function Home() {
     <ProjectsProvider projects={projects}>
       <div className="group/page">
         <main>
-          {/* On wide screens the intro becomes a column on the left and the Work bento fills the rest from the top. */}
+          {/* On wide screens the intro becomes a column on the left and Work fills the rest from the top. */}
           <div className="xl:mx-auto xl:mt-11 xl:grid xl:max-w-[1440px] xl:grid-cols-[330px_1fr] xl:items-start xl:gap-x-14 xl:px-8">
           {/* Intro: the words, then the graph and Connect 4 (beside them on tablets, under them in the column) */}
           <div className="mx-auto mt-10 flex max-w-[900px] flex-col gap-10 px-5 sm:px-8 desktop:grid desktop:grid-cols-[380px_320px] desktop:justify-center desktop:gap-x-16 xl:sticky xl:top-7 xl:m-0 xl:flex xl:max-w-none xl:gap-8 xl:p-0">
@@ -74,7 +74,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Projects: a bento, full width under the intro on smaller screens */}
+          {/* Projects: the lead and the rows, full width under the intro on smaller screens */}
           <section className="mx-auto mt-12 max-w-[1440px] px-5 sm:px-8 xl:m-0 xl:max-w-none xl:p-0" aria-labelledby="work">
             <WorkSection projects={projects} />
           </section>

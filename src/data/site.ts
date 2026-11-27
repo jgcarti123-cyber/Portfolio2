@@ -30,6 +30,8 @@ export type Project = {
   /** Tint for the generated tile. */
   accent?: string;
   links?: { label: string; href: string }[];
+  /** A short muted loop and its first frame, for the home page (lighter than the full demo video). */
+  teaser?: { video: string; poster: string };
   /** A live website: its first screen stands in for the demo video and opens the site when clicked. */
   site?: { href: string; preview: string };
   stack: string[];
@@ -65,6 +67,7 @@ const aiva: Project = {
   role: "Tata Motors",
   accent: "#14b8a6",
   wide: true,
+  teaser: { video: "/previews/aiva-loop.mp4", poster: "/previews/aiva-loop.jpg" },
   stack: ["Claude Haiku 4.5", "AWS Bedrock", "MCP", "FastAPI", "React 19", "GitLab CI", "AWS"],
   points: [
     "**Agentic validation** for connected cars: turns requirement documents, signal catalogs and real scenarios into executable **hardware-in-the-loop test cases**. Used by **25+ engineers**.",
