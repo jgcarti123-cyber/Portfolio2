@@ -1330,6 +1330,16 @@ body[data-pushed] .edge-fade { opacity: 0 !important; }
 .dark .lead-rim {
   background: linear-gradient(160deg, rgb(255 255 255 / 0.35), color-mix(in srgb, var(--accent) 35%, transparent) 40%, rgb(99 102 241 / 0.25) 70%, rgb(255 255 255 / 0.15));
 }
+.lead-chip {
+  background: rgb(255 255 255 / 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6);
+}
+.dark .lead-chip {
+  background: rgb(14 16 18 / 0.7);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
 .lead-glow {
   position: absolute;
   inset: -30px -20px -40px;
@@ -1341,6 +1351,81 @@ body[data-pushed] .edge-fade { opacity: 0 !important; }
     radial-gradient(40% 50% at 20% 80%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 70%),
     radial-gradient(40% 50% at 85% 20%, rgb(129 140 248 / 0.4), transparent 70%);
 }
-.dark .lead-glow {
+.dark .lead-chip {
+  background: rgb(255 255 255 / 0.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.6);
+}
+.dark .lead-chip {
+  background: rgb(14 16 18 / 0.7);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+.lead-glow {
   opacity: 0.55;
+}
+
+/* Work card demos that move: a live site's page panning by, and Swiggy's drawn cart filling up. Both rest when
+   off screen ([data-paused]) and stay still for reduced motion. */
+.work-pan img {
+  object-position: 50% 0%;
+  animation: work-pan 18s ease-in-out infinite alternate;
+}
+@keyframes work-pan {
+  0%, 28% { object-position: 50% 0%; }
+  72%, 100% { object-position: 50% 100%; }
+}
+.sw-loop .sw-photo {
+  animation: sw-photo 7s var(--ease-out-soft) infinite both;
+}
+.sw-loop .sw-item {
+  animation: sw-item 7s ease infinite both;
+  animation-delay: calc(0.9s + var(--i) * 0.35s);
+}
+.sw-loop .sw-cart {
+  animation: sw-cart 7s ease infinite both;
+  animation-delay: 2.6s;
+}
+@keyframes sw-photo {
+  0% { opacity: 0; transform: translateY(-10px) scale(0.9); }
+  8%, 88% { opacity: 1; transform: none; }
+  96%, 100% { opacity: 0; }
+}
+@keyframes sw-item {
+  0% { opacity: 0; transform: translateX(-6px); }
+  5%, 55% { opacity: 1; transform: none; }
+  62%, 100% { opacity: 0; }
+}
+@keyframes sw-cart {
+  0% { opacity: 0; transform: scale(0.96); }
+  5%, 45% { opacity: 1; transform: none; }
+  52%, 100% { opacity: 0; }
+}
+/* In a wide, short card the photo sits beside the list instead of above it, so the text can stay readable. */
+@container (min-aspect-ratio: 3 / 2) {
+  .sw-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 1.2em;
+    width: 36em;
+    max-width: 88%;
+    font-size: min(12px, calc((100cqh - 68px) / 15));
+  }
+  .sw-card .sw-photo {
+    grid-row: 1 / span 6;
+    align-self: stretch;
+    height: auto;
+    width: 8em;
+    margin: 0;
+  }
+}
+[data-paused].work-pan img,
+[data-paused] .sw-photo,
+[data-paused] .sw-item,
+[data-paused] .sw-cart {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .work-pan img { animation: none; object-position: 50% 72%; }
+  .sw-loop .sw-photo, .sw-loop .sw-item, .sw-loop .sw-cart { animation: none; }
 }

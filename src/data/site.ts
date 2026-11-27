@@ -32,6 +32,8 @@ export type Project = {
   links?: { label: string; href: string }[];
   /** A short muted loop and its first frame, for the home page (lighter than the full demo video). */
   teaser?: { video: string; poster: string };
+  /** A full-page screenshot of the live site, panned slowly top to bottom on the home page. */
+  scroll?: string;
   /** A live website: its first screen stands in for the demo video and opens the site when clicked. */
   site?: { href: string; preview: string };
   stack: string[];
@@ -93,6 +95,7 @@ export const featured: Project[] = [
     accent: "#8b5cf6",
     links: [{ label: "Visit site", href: "https://whoof-chatbot-nict.vercel.app" }],
     site: { href: "https://whoof-chatbot-nict.vercel.app", preview: "/work/prim-pets-site.jpg" },
+    scroll: "/previews/prim-scroll.jpg",
     stack: ["Node.js", "PostgreSQL", "Hybrid RAG", "Render"],
     points: [
       "An AI assistant for pet owners, answering questions from a knowledge base of 200+ veterinary documents using hybrid vector + keyword search.",

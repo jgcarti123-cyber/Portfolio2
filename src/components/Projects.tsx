@@ -89,21 +89,32 @@ function OpenButton({ project, rounded }: { project: Project; rounded: string })
   );
 }
 
-/**
- * The lead project's loop: plays while it is on screen and holds still otherwise, or for anyone who asked for
- * less motion (they see its first frame).
- */
-function Loop({ teaser }: { teaser: NonNullable<Project["teaser"]> }) {
-  const ref = useRef<HTMLVideoElement>(null);
+/** Whether an element is at least a quarter on screen, so moving pictures can rest when nobody can see them. */
+function useOnScreen<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [on, setOn] = useState(false);
   useEffect(() => {
-    const v = ref.current;
-    if (!v || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const seen = new IntersectionObserver(([e]) => (e.isIntersecting ? v.play().catch(() => {}) : v.pause()), {
-      threshold: 0.25,
-    });
-    seen.observe(v);
+    const el = ref.current;
+    if (!el) return;
+    const seen = new IntersectionObserver(([e]) => setOn(e.isIntersecting), { threshold: 0.25 });
+    seen.observe(el);
     return () => seen.disconnect();
   }, []);
+  return [ref, on] as const;
+}
+
+/**
+ * A project's short loop: plays while it is on screen and holds still otherwise, or for anyone who asked for less
+ * motion (they see its first frame).
+ */
+function Loop({ teaser }: { teaser: NonNullable<Project["teaser"]> }) {
+  const [ref, on] = useOnScreen<HTMLVideoElement>();
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    if (on && !matchMedia("(prefers-reduced-motion: reduce)").matches) v.play().catch(() => {});
+    else v.pause();
+  }, [on, ref]);
   return (
     <video
       ref={ref}
@@ -119,11 +130,22 @@ function Loop({ teaser }: { teaser: NonNullable<Project["teaser"]> }) {
   );
 }
 
+/** A live site's whole page, panned slowly from the top to the bottom and back. */
+function ScrollShot({ src }: { src: string }) {
+  const [ref, on] = useOnScreen<HTMLDivElement>();
+  return (
+    <div ref={ref} data-paused={on ? undefined : ""} className="work-pan absolute inset-0" aria-hidden>
+      <Image src={src} alt="" fill sizes="(min-width: 1024px) 420px, 100vw" className="object-cover" />
+    </div>
+  );
+}
+
 /**
- * Swiggy has no screenshots yet, so its thumbnail is drawn: a photo dropped into the chat turning into an
- * Instamart cart the person still has to place. Laid out large and shrunk to fit, like a screenshot.
+ * Swiggy has no screenshots yet, so its demo is drawn: a photo dropped into the chat, the ingredients found on
+ * Instamart ticking in, and the cart filled for the person to place. It plays as a loop while on screen.
  */
 function SwiggyArt() {
+  const [ref, on] = useOnScreen<HTMLDivElement>();
   const items = [
     ["Paneer 200g", "₹95"],
     ["Fresh cream", "₹62"],
@@ -131,19 +153,29 @@ function SwiggyArt() {
     ["Tomato 1kg", "₹38"],
   ];
   return (
-    <div className="flex size-full items-center justify-center bg-[radial-gradient(120%_90%_at_70%_10%,#ff9a3d,#fc8019_40%,#c2410c)]" aria-hidden>
-      <div className="w-[78%] rotate-[-3deg] rounded-[20px] bg-white p-3.5 text-[#1c1917] shadow-[0_30px_60px_-20px_rgb(80_20_0/0.55)]">
-        <div className="ml-auto h-[64px] w-[104px] rounded-[12px] bg-[linear-gradient(135deg,#fde68a,#f59e0b_55%,#9a3412)]" />
-        <p className="mt-2.5 text-[12px] leading-snug text-[#57534e]">
+    <div
+      ref={ref}
+      data-paused={on ? undefined : ""}
+      className="sw-loop flex size-full items-center justify-center bg-[radial-gradient(120%_90%_at_70%_10%,#ff9a3d,#fc8019_40%,#c2410c)] pb-[68px] [container-type:size]"
+      aria-hidden
+    >
+      {/* Sized in em from the card's height, so the whole flow fits; wide, short cards lay it out sideways. */}
+      <div className="sw-card w-[25em] max-w-[78%] rotate-[-3deg] rounded-[1.6em] bg-white p-[1.1em] text-[length:min(12px,calc((100cqh-68px)/21))] text-[#1c1917] shadow-[0_30px_60px_-20px_rgb(80_20_0/0.55)]">
+        <div className="sw-photo ml-auto h-[5.2em] w-[8.6em] rounded-[1em] bg-[linear-gradient(135deg,#fde68a,#f59e0b_55%,#9a3412)]" />
+        <p className="mt-[0.8em] leading-snug text-[#57534e]">
           Found <b className="font-semibold text-[#1c1917]">paneer butter masala</b>. On Instamart:
         </p>
-        {items.map(([name, price]) => (
-          <div key={name} className="flex items-center justify-between border-t border-[#f1efe9] py-1.5 text-[12px]">
+        {items.map(([name, price], i) => (
+          <div
+            key={name}
+            className="sw-item flex items-center justify-between border-t border-[#f1efe9] py-[0.5em]"
+            style={{ "--i": i } as CSSProperties}
+          >
             <span>{name}</span>
             <span className="text-[#78716c]">{price}</span>
           </div>
         ))}
-        <div className="mt-2 flex h-8 items-center justify-between rounded-[10px] bg-[#fc8019] px-3 text-[12px] font-semibold text-white">
+        <div className="sw-cart mt-[0.6em] flex h-[2.7em] items-center justify-between rounded-[0.8em] bg-[#fc8019] px-[1em] font-semibold text-white">
           <span>Added to cart</span>
           <span>₹251</span>
         </div>
@@ -152,109 +184,88 @@ function SwiggyArt() {
   );
 }
 
-/** A small picture for a project row: its website's first screen, a screenshot, or a drawing. */
+/** A still picture for a project without a demo: its website's first screen, a screenshot, or its blueprint. */
 function Thumb({ project }: { project: Project }) {
   const picture = project.site?.preview ?? project.images?.[0] ?? project.image;
   if (picture)
-    return (
-      <Image
-        src={picture}
-        alt=""
-        width={1600}
-        height={1000}
-        sizes="(min-width: 1024px) 380px, 240px"
-        className="absolute inset-0 size-full object-cover object-top"
-      />
-    );
-  if (project.slug === "swiggy-agent")
-    return (
-      <div className="h-[250%] w-[250%] origin-top-left scale-[0.4] lg:h-[160%] lg:w-[160%] lg:scale-[0.625]">
-        <SwiggyArt />
-      </div>
-    );
+    return <Image src={picture} alt="" fill sizes="(min-width: 1024px) 420px, 100vw" className="object-cover object-top" />;
   const arch = architectures[project.slug];
   return arch ? <Blueprint mini arch={arch} accent={accentOf(project)} className="size-full" /> : null;
 }
 
+/** The most a project can show on its card: its loop, its site scrolling by, its drawn demo, or a still. */
+function Demo({ project }: { project: Project }) {
+  if (project.teaser) return <Loop teaser={project.teaser} />;
+  if (project.scroll) return <ScrollShot src={project.scroll} />;
+  if (project.slug === "swiggy-agent") return <SwiggyArt />;
+  return <Thumb project={project} />;
+}
+
 /**
- * The lead project as a piece of glass: its loop fills the card and the caption is a frosted sheet over the bottom,
- * the picture moving behind it. A light rim, a diagonal sheen and a soft glow in the project's colour make it read
- * as an object. On wide screens it stretches to the height of the column beside it; on phones the caption sits
- * under the loop instead of over it.
+ * A project as a piece of glass: its demo fills the card and the caption is a frosted sheet over the bottom, the
+ * picture moving behind it. A light rim, a diagonal sheen and a soft glow in the project's colour make it read as
+ * an object. The lead card also carries its figures and a "Watch demo" label.
  */
-function Lead({ project }: { project: Project }) {
-  const stats = architectures[project.slug]?.stats.slice(0, 3) ?? [];
+function WorkCard({ project, lead = false }: { project: Project; lead?: boolean }) {
+  const stats = lead ? (architectures[project.slug]?.stats.slice(0, 3) ?? []) : [];
+  const accent = { "--accent": accentOf(project) } as CSSProperties;
   return (
-    <div
-      data-project={project.slug}
-      className="lead-card group relative flex h-full flex-col overflow-hidden rounded-[24px]"
-      style={{ ...grotesk, "--accent": accentOf(project) } as CSSProperties}
-    >
-      <div className="relative aspect-video overflow-hidden bg-[var(--stage)] sm:aspect-auto sm:min-h-[360px] sm:flex-1 lg:min-h-[400px]">
-        {project.teaser ? <Loop teaser={project.teaser} /> : <Thumb project={project} />}
-      </div>
-      <div className="relative flex flex-col sm:absolute sm:inset-x-0 sm:bottom-0">
-        <span className="pointer-events-none absolute bottom-full right-3 mb-3 inline-flex h-8 items-center gap-1.5 rounded-full bg-black/55 px-3 text-[12.5px] font-medium text-white backdrop-blur-md transition-colors duration-300 group-hover:bg-black/75">
-          <Play size={11} weight="fill" aria-hidden />
-          Watch demo
-        </span>
-        <div className="lead-glass flex flex-wrap items-end justify-between gap-x-6 gap-y-4 px-[22px] pb-[22px] pt-5">
-          <div>
-            <Meta project={project} />
-            <p className="mt-1.5 text-[26px] font-medium leading-none tracking-[-0.03em] text-[var(--ink)]">{project.title}</p>
-            <p className="mt-1.5 text-[14px] text-[var(--ink-2)]">{project.tagline}</p>
-          </div>
-          <div className="flex gap-6">
-            {stats.map((s) => (
-              <p key={s.label} className="text-[12px] text-[var(--ink-2)]">
-                <span className="block text-[17px] font-medium leading-tight tracking-[-0.02em] tabular-nums text-[var(--ink)]">{s.value}</span>
-                {s.label}
+    <div className="relative isolate h-full">
+      <div aria-hidden className="lead-glow" style={{ ...accent, ...(lead ? null : { opacity: 0.4 }) }} />
+      <div data-project={project.slug} className="lead-card group relative h-full overflow-hidden rounded-[24px]" style={{ ...grotesk, ...accent }}>
+        <div className="absolute inset-0 bg-[var(--stage)]">
+          <Demo project={project} />
+        </div>
+        <div className="absolute inset-x-0 bottom-0">
+          {lead && (
+            <span className="pointer-events-none absolute bottom-full right-3 mb-3 inline-flex h-8 items-center gap-1.5 rounded-full bg-black/55 px-3 text-[12.5px] font-medium text-white backdrop-blur-md transition-colors duration-300 group-hover:bg-black/75">
+              <Play size={11} weight="fill" aria-hidden />
+              Watch demo
+            </span>
+          )}
+          <div className={`lead-glass flex flex-wrap items-end justify-between gap-x-6 gap-y-4 ${lead ? "px-[22px] pb-[22px] pt-5" : "px-[18px] pb-4 pt-3.5"}`}>
+            <div className="min-w-0">
+              {lead && <Meta project={project} className="mb-1.5" />}
+              <p className={`font-medium leading-none tracking-[-0.03em] text-[var(--ink)] ${lead ? "text-[26px]" : "text-[20px]"}`}>
+                {project.title}
               </p>
-            ))}
+              <p className={`mt-1.5 truncate text-[var(--ink-2)] ${lead ? "text-[14px]" : "text-[13px]"}`}>{project.tagline}</p>
+            </div>
+            {stats.length > 0 && (
+              <div className="flex gap-6">
+                {stats.map((s) => (
+                  <p key={s.label} className="text-[12px] text-[var(--ink-2)]">
+                    <span className="block text-[17px] font-medium leading-tight tracking-[-0.02em] tabular-nums text-[var(--ink)]">{s.value}</span>
+                    {s.label}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+        {!lead && (
+          <span className="lead-chip pointer-events-none absolute left-3 top-3 z-[2] flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[11px] text-[var(--ink-2)]">
+            <span className="size-1.5 rounded-full" style={{ background: accentOf(project) }} />
+            {project.role ?? "Personal"} · {project.year}
+          </span>
+        )}
+        {!lead && (
+          <span className="pointer-events-none absolute right-3 top-3 z-[2] flex size-8 items-center justify-center rounded-full bg-white/90 text-black opacity-0 shadow-sm transition-all duration-300 group-hover:rotate-45 group-hover:opacity-100 [@media(hover:none)]:opacity-0">
+            <ArrowUpRight size={14} weight="bold" />
+          </span>
+        )}
+        <span aria-hidden className="lead-sheen pointer-events-none absolute inset-0 rounded-[inherit]" />
+        <span aria-hidden className="lead-rim pointer-events-none absolute inset-0 rounded-[inherit]" />
+        <OpenButton project={project} rounded="rounded-[24px]" />
       </div>
-      <span aria-hidden className="lead-sheen pointer-events-none absolute inset-0 rounded-[inherit]" />
-      <span aria-hidden className="lead-rim pointer-events-none absolute inset-0 rounded-[inherit]" />
-      <OpenButton project={project} rounded="rounded-[24px]" />
     </div>
   );
 }
 
 /**
- * Every other project: a slim row (small picture, meta, name, what it is) on smaller screens, and on wide screens a
- * card whose picture grows to fill its half of the column beside the lead.
- */
-function Row({ project }: { project: Project }) {
-  return (
-    <div
-      data-project={project.slug}
-      className="group relative -mx-2.5 grid w-full grid-cols-[118px_1fr_auto] items-center gap-4 rounded-[18px] p-2.5 transition-[background-color,box-shadow,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[var(--stage)] lg:m-0 lg:h-full lg:grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto] lg:items-stretch lg:gap-3 lg:rounded-[22px] lg:bg-[var(--stage)] lg:p-2 lg:pb-3.5 lg:hover:-translate-y-0.5 lg:hover:shadow-[0_22px_40px_-28px_rgb(0_0_0/0.35)]"
-      style={grotesk}
-    >
-      <div className="relative h-20 overflow-hidden rounded-[12px] bg-[var(--stage)] shadow-[0_0_0_1px_var(--hair)] lg:h-auto lg:min-h-0 lg:rounded-[15px]">
-        <div className="absolute inset-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]">
-          <Thumb project={project} />
-        </div>
-      </div>
-      <div className="min-w-0 lg:px-2">
-        <Meta project={project} className="text-[11.5px]" />
-        <p className="mt-1 text-[18px] font-medium tracking-[-0.025em] text-[var(--ink)]">{project.title}</p>
-        <p className="mt-0.5 truncate text-[13px] text-[var(--ink-2)]">{project.tagline}</p>
-      </div>
-      <ArrowUpRight
-        size={15}
-        aria-hidden
-        className="mr-1.5 text-[var(--ink-2)] opacity-0 transition-all duration-300 group-hover:rotate-45 group-hover:opacity-100 lg:absolute lg:bottom-[22px] lg:right-[18px] lg:mr-0 [@media(hover:none)]:opacity-60"
-      />
-      <OpenButton project={project} rounded="rounded-[18px] lg:rounded-[22px]" />
-    </div>
-  );
-}
-
-/**
- * The Work section: the lead project as a glass card with its loop and figures, and the rest beside it filling the
- * same height (under it, as slim rows, on smaller screens). Every block opens the project's full view.
+ * The Work section: every project as a glass card showing as much of its demo as it can. The lead takes the left
+ * two rows on wide screens with the others stacked beside it; on tablets the others sit side by side under it, and
+ * on phones everything stacks. Every card opens the project's full view.
  */
 export function WorkSection({ projects }: { projects: Project[] }) {
   const [lead, ...rest] = projects;
@@ -269,24 +280,17 @@ export function WorkSection({ projects }: { projects: Project[] }) {
         Work
         <sup className="ml-1 mt-1 text-[12px] font-normal tracking-normal text-neutral-400">{projects.length}</sup>
       </h2>
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr] lg:items-stretch lg:gap-[26px]">
-        <div className="fade-in relative isolate" style={{ animationDelay: "200ms" }}>
-          {lead && (
-            <>
-              <div aria-hidden className="lead-glow" style={{ "--accent": accentOf(lead) } as CSSProperties} />
-              <Lead project={lead} />
-            </>
-          )}
-        </div>
-        {/* On wide screens this column takes the lead's height rather than adding its own. */}
-        <div className="flex flex-col lg:grid lg:h-0 lg:min-h-full lg:auto-rows-fr lg:gap-3.5">
-          {rest.map((p, i) => (
-            <div key={p.slug} className="fade-in lg:flex lg:min-h-0" style={{ animationDelay: `${260 + i * 60}ms` }}>
-              {i > 0 && <div className="my-1.5 h-px bg-[var(--hair)] lg:hidden" />}
-              <Row project={p} />
-            </div>
-          ))}
-        </div>
+      <div className="mt-6 grid gap-[18px] md:grid-cols-2 lg:grid-cols-[1.55fr_1fr] lg:grid-rows-[256px_256px]">
+        {lead && (
+          <div className="fade-in h-[420px] md:col-span-2 md:h-[440px] lg:col-span-1 lg:row-span-2 lg:h-auto" style={{ animationDelay: "200ms" }}>
+            <WorkCard project={lead} lead />
+          </div>
+        )}
+        {rest.map((p, i) => (
+          <div key={p.slug} className="fade-in h-[300px] lg:h-auto" style={{ animationDelay: `${260 + i * 60}ms` }}>
+            <WorkCard project={p} />
+          </div>
+        ))}
       </div>
     </>
   );
