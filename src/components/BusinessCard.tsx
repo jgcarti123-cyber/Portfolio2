@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, type PointerEvent } from "react";
-import { ArrowDown, Check } from "@phosphor-icons/react/dist/ssr";
+import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { ArrowDown, Check, DeviceMobile } from "@phosphor-icons/react/dist/ssr";
 import { connect, experience, profile, resume } from "@/data/site";
 import { tellMascot } from "@/lib/mascot";
 import { Icon } from "./Icon";
@@ -9,13 +9,110 @@ import { Icon } from "./Icon";
 const [job, school] = experience;
 
 /**
+ * Point the card at x, y (0–1 across and down): tilt toward it, and move the glow, streak and bright rim there,
+ * easing over `ms`.
+ */
+function aim(el: HTMLElement, x: number, y: number, ms: number) {
+  el.style.transitionDuration = `${ms}ms`;
+  el.style.transform = `rotateX(${(0.5 - y) * 12}deg) rotateY(${(x - 0.5) * 16}deg)`;
+  el.style.setProperty("--x", `${x * 100}%`);
+  el.style.setProperty("--y", `${y * 100}%`);
+  el.dataset.lit = "";
+}
+
+/** Let the card settle back to flat. */
+function rest(el: HTMLElement) {
+  el.style.transitionDuration = "";
+  el.style.transform = "";
+  delete el.dataset.lit;
+}
+
+type OrientationEventWithPermission = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<PermissionState> };
+
+/**
+ * On phones the card follows the phone: tip it and the card tilts, with the light sliding across it. The way the
+ * phone is being held counts as level, and that slowly follows any change in grip. iPhones need the visitor's
+ * say-so, given with a tap, so there it waits for `start()`; `ask` is true while that is still to come.
+ */
+function usePhoneTilt(card: RefObject<HTMLDivElement | null>) {
+  const [ask, setAsk] = useState(false);
+  const [listening, setListening] = useState(false);
+
+  useEffect(() => {
+    if (!matchMedia("(hover: none) and (pointer: coarse)").matches) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches || !("DeviceOrientationEvent" in window)) return;
+    const Orientation = DeviceOrientationEvent as OrientationEventWithPermission;
+    // Chrome offers the permission call too and simply grants it; iPhones refuse it without a tap, so only they
+    // end up showing the chip. (A mount check for a browser-only API, so setting state here is intended.)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!Orientation.requestPermission) return setListening(true);
+    Orientation.requestPermission().then(
+      (state) => (state === "granted" ? setListening(true) : setAsk(true)),
+      () => setAsk(true),
+    );
+  }, []);
+
+  useEffect(() => {
+    const el = card.current;
+    if (!listening || !el) return;
+    let level: [number, number] | null = null;
+    let target = [0.5, 0.5];
+    const now = [0.5, 0.5];
+    let frame = 0;
+    let visible = false;
+    const clamp = (v: number) => Math.max(-1, Math.min(1, v));
+
+    function onTilt(e: DeviceOrientationEvent) {
+      if (e.beta == null || e.gamma == null) return;
+      // Side to side and toward/away from you, whichever way the phone is turned.
+      const angle = screen.orientation?.angle ?? 0;
+      const [side, tip] =
+        angle === 90 ? [e.beta, -e.gamma] : angle === 270 ? [-e.beta, e.gamma] : angle === 180 ? [-e.gamma, -e.beta] : [e.gamma, e.beta];
+      if (!level) level = [side, tip];
+      level = [level[0] + (side - level[0]) * 0.003, level[1] + (tip - level[1]) * 0.003];
+      target = [0.5 + clamp((side - level[0]) / 22) * 0.5, 0.5 + clamp((tip - level[1]) / 22) * 0.5];
+      if (visible && !frame) frame = requestAnimationFrame(step);
+    }
+    // Ease toward the latest reading every frame, so the card glides instead of twitching with the sensor.
+    function step() {
+      frame = 0;
+      now[0] += (target[0] - now[0]) * 0.14;
+      now[1] += (target[1] - now[1]) * 0.14;
+      aim(el!, now[0], now[1], 0);
+      if (Math.abs(target[0] - now[0]) + Math.abs(target[1] - now[1]) > 0.002) frame = requestAnimationFrame(step);
+    }
+
+    const seen = new IntersectionObserver(([entry]) => (visible = entry.isIntersecting));
+    seen.observe(el);
+    window.addEventListener("deviceorientation", onTilt);
+    return () => {
+      window.removeEventListener("deviceorientation", onTilt);
+      seen.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [card, listening]);
+
+  async function start() {
+    const Orientation = DeviceOrientationEvent as OrientationEventWithPermission;
+    setAsk(false);
+    try {
+      if ((await Orientation.requestPermission?.()) === "granted") setListening(true);
+    } catch {}
+  }
+
+  return { ask, start };
+}
+
+/**
  * Experience and contact as one graphite card, like a metal business card, set over the closing photo. A streak of
  * light sweeps across it every few seconds; with a mouse it tilts toward the cursor, the streak and a soft glow follow
- * it, and the rim nearest it catches the light. Clicking anywhere but the links copies the email address.
+ * it, and the rim nearest it catches the light. On phones it does the same as the phone tips. Clicking anywhere but
+ * the links copies the email address.
  */
 export function BusinessCard() {
   const card = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const tilt = usePhoneTilt(card);
 
   function onMove(e: PointerEvent<HTMLDivElement>) {
     const el = card.current;
@@ -23,19 +120,11 @@ export function BusinessCard() {
     const r = el.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width;
     const y = (e.clientY - r.top) / r.height;
-    el.style.transitionDuration = "160ms";
-    el.style.transform = `rotateX(${(0.5 - y) * 12}deg) rotateY(${(x - 0.5) * 16}deg)`;
-    el.style.setProperty("--x", `${x * 100}%`);
-    el.style.setProperty("--y", `${y * 100}%`);
-    el.dataset.lit = "";
+    aim(el, x, y, 160);
   }
 
   function onLeave() {
-    const el = card.current;
-    if (!el) return;
-    el.style.transitionDuration = "";
-    el.style.transform = "";
-    delete el.dataset.lit;
+    if (card.current) rest(card.current);
   }
 
   async function copy() {
@@ -121,6 +210,16 @@ export function BusinessCard() {
           </span>
         )}
       </p>
+      {tilt.ask && (
+        <button
+          type="button"
+          onClick={tilt.start}
+          className="mt-3 inline-flex h-[30px] items-center gap-1.5 rounded-full bg-white/10 px-3.5 text-[13px] font-medium text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.18)] outline-none backdrop-blur-md transition-colors duration-200 active:bg-white/[0.16] focus-visible:ring-2 focus-visible:ring-white/40"
+        >
+          <DeviceMobile size={14} weight="bold" aria-hidden className="bcard-tip" />
+          Tilt to play
+        </button>
+      )}
     </div>
   );
 }

@@ -1271,6 +1271,19 @@ body[data-pushed] .edge-fade { opacity: 0 !important; }
     opacity: 0;
   }
 }
+/* The phone icon on the "Tilt to play" chip rocks now and then, to show what it means. */
+.bcard-tip {
+  animation: bcard-tip 3.2s ease-in-out infinite;
+}
+@keyframes bcard-tip {
+  0%, 60%, 100% { transform: none; }
+  70% { transform: rotate(-16deg); }
+  82% { transform: rotate(14deg); }
+  92% { transform: rotate(-4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bcard-tip { animation: none; }
+}
 .bcard-grain {
   opacity: 0.16;
   mix-blend-mode: overlay;
