@@ -6,7 +6,8 @@ import { useHydrated } from "@/lib/hooks";
 
 const sha = (process.env.NEXT_PUBLIC_COMMIT_SHA ?? "dev").slice(0, 7).toUpperCase();
 
-export function Footer({ style }: { style?: React.CSSProperties }) {
+/** onPhoto: set in white over a picture, with no top margin. */
+export function Footer({ style, onPhoto = false }: { style?: React.CSSProperties; onPhoto?: boolean }) {
   const hydrated = useHydrated();
   const hour = hydrated
     ? Number(
@@ -20,7 +21,7 @@ export function Footer({ style }: { style?: React.CSSProperties }) {
   return (
     <footer
       data-ground="footer"
-      className="fade-in mt-16 flex items-center justify-between text-xs text-neutral-400 dark:text-neutral-600"
+      className={`fade-in flex items-center justify-between text-xs ${onPhoto ? "text-white/70" : "mt-16 text-neutral-400 dark:text-neutral-600"}`}
       style={style}
     >
       <span>

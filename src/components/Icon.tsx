@@ -11,6 +11,7 @@ import {
   Robot,
   SealCheck,
   ShoppingBag,
+  XLogo,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import type { IconName } from "@/data/site";
@@ -28,6 +29,7 @@ const icons: Record<IconName, PhosphorIcon> = {
   envelope: Envelope,
   github: GithubLogo,
   linkedin: LinkedinLogo,
+  x: XLogo,
 };
 
 export function Icon({

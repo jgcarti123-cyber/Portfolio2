@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef, type MouseEvent, type PointerEvent, type ReactNode } from "react";
-import Link from "next/link";
+import { useEffect, useRef, type MouseEvent, type PointerEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { BigTabs } from "./BigTabs";
 import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react/dist/ssr";
-import { connect, featured, work } from "@/data/site";
+import { featured, work } from "@/data/site";
 import { shelf } from "@/data/shelf";
 import { skillGroups } from "@/data/skills";
 import { playTick, setSoundEnabled, useSoundEnabled } from "@/lib/sound";
@@ -171,52 +170,6 @@ export function Toolbar({ blogCount }: { blogCount: number }) {
         items={pages.map(({ page, href, label }) => ({ key: page, label, href, count: page === "blog" ? blogCount : counts[page] }))}
       />
     </nav>
-  );
-}
-
-/**
- * A thin line along the top of the header: the pages as small links on the left, and Email, GitHub and LinkedIn
- * on the right, before the sound toggle and the clock. It stops short of the pull cord's bulb.
- */
-export function NavStrip({ blogCount, children }: { blogCount: number; children: ReactNode }) {
-  const active = useActivePage();
-  const onNavigate = usePageLeave();
-  const link =
-    "rounded-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-white/40";
-
-  return (
-    <div className="relative z-[2] mr-9 flex items-center gap-x-5 whitespace-nowrap border-b [text-shadow:0_1px_10px_rgb(0_0_0/0.45)] border-white/[0.14] pb-3.5 text-[13px] sm:mr-14 md:gap-x-[22px]">
-      <nav aria-label="Pages" onClickCapture={onNavigate} className="flex items-center gap-x-4 md:gap-x-[22px]">
-        {pages.map(({ page, href, label }) => (
-          <Link
-            key={page}
-            href={href}
-            aria-current={page === active ? "page" : undefined}
-            className={`${link} inline-flex items-baseline gap-[5px] ${page === active ? "text-white" : "text-white/60 hover:text-white"}`}
-          >
-            {label}
-            <sup className="top-[-0.2em] text-[10px] tabular-nums opacity-60">{page === "blog" ? blogCount : counts[page]}</sup>
-          </Link>
-        ))}
-      </nav>
-      <span className="flex-1" />
-      <div className="hidden items-center gap-x-[22px] md:flex">
-        {connect.map((c) => (
-          <a
-            key={c.subtitle}
-            href={c.href}
-            className={`${link} text-white/60 hover:text-white`}
-            {...(c.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
-          >
-            {c.subtitle} <span className="opacity-60">↗</span>
-          </a>
-        ))}
-      </div>
-      {/* On phones there is only room for the sound toggle; the clock joins it from small tablets up. */}
-      <div className="flex items-center gap-3 md:ml-3.5 md:border-l md:border-white/25 md:pl-[18px] max-sm:[&>[data-ground=clock]]:hidden">
-        {children}
-      </div>
-    </div>
   );
 }
 

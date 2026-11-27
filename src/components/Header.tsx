@@ -1,17 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
-import { profile } from "@/data/site";
+import { ArrowDown } from "@phosphor-icons/react/dist/ssr";
+import { profile, resume } from "@/data/site";
 import { getPosts } from "@/lib/blog";
 import { getPhotos } from "@/lib/photos";
 import { NamePhotos } from "./NamePhotos";
 import { Clock } from "./Clock";
 import { OnlineDot } from "./OnlineDot";
-import { NavStrip, SoundToggle, Toolbar } from "./Toolbar";
+import { SoundToggle, Toolbar } from "./Toolbar";
 
 /**
  * The top quarter of every page: John's name stacked like a logo, with the pages as huge words starting right
- * beside it and running off the window edge, all in white over a photo of the sky. A thin strip along the top
- * holds the pages, the contact links, sound and the clock. On phones the name sits above the words instead. It lives in the root layout, so it stays
+ * beside it and running off the window edge, all in white over a photo of the sky. Resume, sound and the clock sit
+ * in the top-right corner. On phones the name sits above the words instead. It lives in the root layout, so it stays
  * put while the page below it changes.
  */
 export function GiantHeader() {
@@ -19,10 +20,19 @@ export function GiantHeader() {
     <header className="giant-head on-photo dark fade-in relative isolate overflow-hidden px-5 pt-5 sm:px-8 md:pt-[22px]">
       {/* The sky behind the name and the page words. The header runs in dark colours so its text sits in white. */}
       <Image src="/header-sky.jpg" alt="" fill priority quality={90} sizes="100vw" className="-z-10 object-cover" />
-      <NavStrip blogCount={getPosts().length}>
+      {/* Resume, sound and the clock in the top-right corner, stopping short of the pull cord's bulb. */}
+      <div className="relative z-[2] mr-9 flex items-center justify-end gap-3 sm:mr-14">
+        <a
+          href={resume}
+          download
+          className="mr-1.5 inline-flex h-[30px] items-center gap-1.5 rounded-full bg-white/10 px-3.5 text-[13px] font-medium text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.18)] outline-none backdrop-blur-md transition-colors duration-200 hover:bg-white/[0.16] focus-visible:ring-2 focus-visible:ring-white/40"
+        >
+          Resume
+          <ArrowDown size={12} weight="bold" aria-hidden />
+        </a>
         <SoundToggle />
         <Clock timeZone={profile.timeZone} />
-      </NavStrip>
+      </div>
       <div className="mt-6 flex flex-col gap-6 md:mt-8 md:flex-row md:items-start md:gap-[2.2vw]">
         <Link
           href="/"

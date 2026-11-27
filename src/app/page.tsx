@@ -1,14 +1,14 @@
+import Image from "next/image";
+import { BusinessCard } from "@/components/BusinessCard";
 import { Connect4 } from "@/components/Connect4";
 import { Contributions } from "@/components/Contributions";
 import { CopyEmail } from "@/components/CopyEmail";
 import { Footer } from "@/components/Footer";
-import { Icon } from "@/components/Icon";
 import { InlineLink } from "@/components/InlineLink";
 import { RotatingText } from "@/components/RotatingText";
-import { ListItemBody, rowClass, staticRowClass } from "@/components/ListItem";
 import { ProjectsProvider, WorkSection } from "@/components/Projects";
-import { delay, Section, stagger } from "@/components/Section";
-import { connect, experience, featured as featuredData, profile, work as workData } from "@/data/site";
+import { delay, stagger } from "@/components/Section";
+import { connect, featured as featuredData, profile, work as workData } from "@/data/site";
 import { withGallery } from "@/lib/gallery";
 
 export const revalidate = 3600;
@@ -41,7 +41,7 @@ export default function Home() {
   return (
     <ProjectsProvider projects={projects}>
       <div className="group/page">
-        <main className="pb-32">
+        <main>
           {/* On wide screens the intro becomes a column on the left and the Work bento fills the rest from the top. */}
           <div className="xl:mx-auto xl:mt-11 xl:grid xl:max-w-[1440px] xl:grid-cols-[330px_1fr] xl:items-start xl:gap-x-14 xl:px-8">
           {/* Intro: the words, then the graph and Connect 4 (beside them on tablets, under them in the column) */}
@@ -80,36 +80,30 @@ export default function Home() {
           </section>
           </div>
 
-          {/* Experience and Connect, as before */}
-          <div className="mx-auto mt-10 flex max-w-[900px] flex-col px-5 sm:px-8 desktop:grid desktop:grid-cols-[320px_320px] desktop:justify-center desktop:gap-x-16">
-            <Section label="Experience" start={next()}>
-              {experience.map((e) => (
-                <div key={e.title} className="fade-in" style={delay(next())}>
-                  <div className={staticRowClass}>
-                    <ListItemBody icon={<Icon name={e.icon} />} title={e.title} subtitle={e.subtitle} meta={e.period} />
-                  </div>
-                </div>
-              ))}
-            </Section>
-
-            <Section label="Connect" start={next()}>
-              {connect.map((c) => (
-                <div key={c.subtitle} className="fade-in" style={delay(next())}>
-                  <a
-                    href={c.href}
-                    className={rowClass}
-                    {...(c.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
-                  >
-                    <ListItemBody icon={<Icon name={c.icon} />} title={c.title} subtitle={c.subtitle} />
-                  </a>
-                </div>
-              ))}
-            </Section>
-          </div>
-
-          <div className="mx-auto max-w-[704px] px-5 sm:px-0">
-            <Footer style={delay(next())} />
-          </div>
+          {/* The page closes on a photo: the temple on the left, the business card in the open sky between it and
+              the sun, and the footer along the bottom. The band keeps the photo's framing as the window widens; on
+              smaller screens the card sits centred instead. */}
+          <section
+            data-photo
+            aria-label="Contact"
+            className="relative isolate mt-24 flex min-h-[560px] flex-col overflow-hidden lg:h-[clamp(560px,43vw,820px)]"
+          >
+            <Image
+              src="/closing-ascii.jpg"
+              alt=""
+              fill
+              quality={85}
+              sizes="100vw"
+              className="-z-10 object-cover object-[58%_55%] lg:object-[50%_55%]"
+            />
+            <div aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgb(40_0_8/0.18),rgb(40_0_8/0.3))]" />
+            <div className="fade-in mx-auto mt-16 w-full max-w-[460px] px-5 sm:mt-24 lg:absolute lg:left-[62%] lg:top-[40%] lg:m-0 lg:max-w-[440px] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:px-0 xl:left-[66%]" style={delay(next())}>
+              <BusinessCard />
+            </div>
+            <div className="mx-auto mt-auto w-full max-w-[1440px] px-5 pb-6 pt-16 sm:px-8">
+              <Footer onPhoto style={delay(next())} />
+            </div>
+          </section>
         </main>
       </div>
     </ProjectsProvider>

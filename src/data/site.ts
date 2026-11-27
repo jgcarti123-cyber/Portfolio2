@@ -48,7 +48,8 @@ export type IconName =
   | "graduation"
   | "envelope"
   | "github"
-  | "linkedin";
+  | "linkedin"
+  | "x";
 
 /**
  * Company project, so there is no public link. The demo video and any screenshots are read from
@@ -119,26 +120,26 @@ export const featured: Project[] = [
 
 export const work: Project[] = [aiva];
 
+/** The job first, then education. The business card at the foot of the home page reads both. */
 export const experience = [
   {
-    title: "AI Full-Stack Engineer",
-    subtitle: "Tata Motors · Senior Manager",
-    period: "2025 — Now",
-    icon: "car" as IconName,
-  },
-  {
-    title: "Graduate Engineer Trainee",
-    subtitle: "Tata Motors · Telematics",
-    period: "2024 — 25",
+    title: "AI Engineer",
+    subtitle: "Tata Motors",
+    period: "Jul 2024 — Present",
+    since: "July 2024",
     icon: "car" as IconName,
   },
   {
     title: "NIT Calicut",
     subtitle: "B.Tech, Electrical & Electronics",
-    period: "2020 — 24",
+    period: "2020 — 2024",
+    since: "2020",
     icon: "graduation" as IconName,
   },
 ];
+
+/** Resume 7 with the phone number taken out. */
+export const resume = "/John_George_Resume.pdf";
 
 export const connect = [
   {
@@ -158,5 +159,11 @@ export const connect = [
     subtitle: "LinkedIn",
     href: "https://www.linkedin.com/in/john-george-0239b723a",
     icon: "linkedin" as IconName,
+  },
+  {
+    title: "@johngeo97067233",
+    subtitle: "X",
+    href: "https://x.com/johngeo97067233",
+    icon: "x" as IconName,
   },
 ];
