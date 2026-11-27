@@ -39,6 +39,7 @@ export function BigTabs({
   className = "",
   style,
   ground,
+  spotlight = false,
 }: {
   items: BigTab[];
   active: string;
@@ -52,10 +53,12 @@ export function BigTabs({
   style?: CSSProperties;
   /** data-ground value, so J can stand on the row. */
   ground?: string;
+  /** The current word full size and the rest small beside it, so every word stays in view (the site pages). */
+  spotlight?: boolean;
 }) {
   return (
     <ul
-      className={`bt ${className}`}
+      className={`bt ${spotlight ? "bt-spot" : ""} ${className}`}
       data-scroll={scroll ? "" : undefined}
       style={{ ...(size ? ({ "--bt-size": size } as CSSProperties) : null), ...style }}
       aria-label={label}
@@ -63,7 +66,16 @@ export function BigTabs({
     >
       {items.map((t, i) => {
         const on = t.key === active;
-        const text = `${t.label}${i < items.length - 1 ? "," : ""}`;
+        const comma = i < items.length - 1;
+        // In a spotlight row only the big word keeps its comma, and only while the words share a line.
+        const text = spotlight ? (
+          <>
+            {t.label}
+            {comma && <span className="bt-comma">,</span>}
+          </>
+        ) : (
+          `${t.label}${comma ? "," : ""}`
+        );
         const common = {
           className: "bt-item",
           "data-active": on ? "" : undefined,
@@ -77,7 +89,7 @@ export function BigTabs({
           </>
         );
         return (
-          <li key={t.key}>
+          <li key={t.key} data-key={t.key} data-on={on ? "" : undefined}>
             {t.href ? (
               <Link href={t.href} aria-current={on ? "page" : undefined} {...common}>
                 {inner}

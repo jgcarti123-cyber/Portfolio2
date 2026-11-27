@@ -10,14 +10,14 @@ import { OnlineDot } from "./OnlineDot";
 import { SoundToggle, Toolbar } from "./Toolbar";
 
 /**
- * The top quarter of every page: John's name stacked like a logo, with the pages as huge words starting right
- * beside it and running off the window edge, all in white over a photo of the sky. Resume, sound and the clock sit
- * in the top-right corner. On phones the name sits above the words instead. It lives in the root layout, so it stays
- * put while the page below it changes.
+ * The top of every page: John's name stacked like a logo, with the pages as huge words beside it (the current one
+ * full size, the rest small so every page stays in view), all in white over a photo of the sky. Resume, sound and
+ * the clock sit in the top-right corner. On phones the name sits above the words instead. It lives in the root
+ * layout, so it stays put while the page below it changes.
  */
 export function GiantHeader() {
   return (
-    <header className="giant-head on-photo dark fade-in relative isolate overflow-hidden px-5 pt-5 sm:px-8 md:pt-[22px]">
+    <header className="giant-head on-photo dark fade-in relative isolate overflow-hidden px-5 pt-3 sm:px-8">
       {/* The sky behind the name and the page words. The header runs in dark colours so its text sits in white. */}
       <Image src="/header-sky.jpg" alt="" fill priority quality={90} sizes="100vw" className="-z-10 object-cover" />
       {/* Resume, sound and the clock in the top-right corner, stopping short of the pull cord's bulb. */}
@@ -33,7 +33,7 @@ export function GiantHeader() {
         <SoundToggle />
         <Clock timeZone={profile.timeZone} />
       </div>
-      <div className="mt-6 flex flex-col gap-6 md:mt-8 md:flex-row md:items-start md:gap-[2.2vw]">
+      <div className="mt-2.5 flex flex-col gap-2.5 md:mt-1.5 md:flex-row md:items-start md:gap-[2.2vw]">
         <Link
           href="/"
           className="group/name block shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 md:pt-[1.6vw]"

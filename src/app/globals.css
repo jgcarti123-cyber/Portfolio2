@@ -644,13 +644,7 @@ dialog.sheet[open]::backdrop {
   color: var(--foreground);
 }
 
-/* The giant page words: one line, running off the right edge on wide screens (a header ~a quarter of the
-   window tall), and a sideways-scrolling row on phones. */
-@media (min-width: 768px) {
-  .giant-head {
-    min-height: 25vh;
-  }
-}
+/* The giant page words: one line on wide screens, a sideways-scrolling row on phones (see the spotlight below). */
 @media (max-width: 767px) {
   .giant-tabs.bt[data-scroll] {
     mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent 100%);
@@ -856,8 +850,62 @@ body[data-pushed] .edge-fade { opacity: 0 !important; }
 }
 .giant-tabs.bt::-webkit-scrollbar { display: none; }
 .giant-tabs.bt > * { flex: 0 0 auto; }
-.giant-tabs.bt[data-dragging] { cursor: grabbing; scroll-snap-type: none; }
-.giant-tabs.bt[data-dragging] a { pointer-events: none; }
+
+/* Spotlight: the current page's word full size and the others small beside it, sitting on its baseline area, so
+   every page is in view. On phones the big word takes the first line and the others line up under it. */
+.giant-tabs.bt.bt-spot {
+  position: relative;
+  overflow: visible;
+  mask-image: none;
+  padding-right: 0;
+  align-items: flex-end;
+  column-gap: 0.2em;
+}
+.giant-tabs.bt-spot > li:not([data-on]) {
+  font-size: 0.3em;
+  letter-spacing: -0.02em;
+  padding-bottom: 0.62em;
+  /* A touch brighter than the usual faint words, and lifted off the bright clouds, since they are small here. */
+  --ink-3: rgb(255 255 255 / 0.62);
+  text-shadow: 0 1px 14px rgb(0 0 0 / 0.35);
+}
+.giant-tabs.bt-spot > li:not([data-on]) .bt-comma {
+  display: none;
+}
+/* The old page's word on its way out (see Toolbar). */
+.bt-ghost {
+  position: absolute;
+  pointer-events: none;
+  white-space: nowrap;
+  line-height: inherit;
+}
+.bt-ghost .bt-item {
+  color: inherit;
+}
+@media (max-width: 767px) {
+  .giant-tabs.bt.bt-spot {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    column-gap: 0.32em;
+    row-gap: 0;
+    padding-bottom: 0.22em;
+  }
+  .giant-tabs.bt-spot > li[data-on] {
+    order: -1;
+    flex-basis: 100%;
+  }
+  .giant-tabs.bt-spot > li[data-on] .bt-comma {
+    display: none;
+  }
+  .giant-tabs.bt-spot > li:not([data-on]) {
+    font-size: 0.36em;
+    padding-bottom: 0;
+    margin-top: 0.3em;
+  }
+  .giant-tabs.bt-spot > li:not([data-on]) .bt-n {
+    font-size: 10px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .roll-in, .roll-out { animation: none; }
   .roll-out { display: none; }

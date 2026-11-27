@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { BigTabs } from "./BigTabs";
 import { SpeakerHigh, SpeakerSlash } from "@phosphor-icons/react/dist/ssr";
@@ -48,7 +48,8 @@ function useActivePage(): ActivePage {
 
 /**
  * Going to another page: the header stays, the page under it softens and lifts away, then the next one settles in
- * with its own staggered entrance. Returns a click handler for any element holding page links.
+ * with its own staggered entrance. Returns a click handler for any element holding page links, which says whether it
+ * set off a page change.
  */
 function usePageLeave() {
   const pathname = usePathname();
@@ -61,14 +62,17 @@ function usePageLeave() {
     leaving.current = null;
   }, [pathname]);
 
-  return function onNavigate(e: MouseEvent<HTMLElement>) {
+  return function onNavigate(e: MouseEvent<HTMLElement>): boolean {
     const a = (e.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
-    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
     const href = a.getAttribute("href")!;
-    if (!href.startsWith("/")) return;
+    if (!href.startsWith("/")) return false;
     const main = document.querySelector<HTMLElement>("#site main");
-    if (href === pathname || leaving.current) return e.preventDefault();
-    if (!main || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (href === pathname || leaving.current) {
+      e.preventDefault();
+      return false;
+    }
+    if (!main || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
     e.preventDefault();
     router.prefetch(href);
     leaving.current = main.animate(
@@ -87,85 +91,155 @@ function usePageLeave() {
     };
     leaving.current.onfinish = go;
     setTimeout(go, 320);
+    return true;
   };
 }
 
+type Spot = { x: number; y: number; size: number; spacing: string; color: string; shadow: string; comma: boolean };
+
+const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
+const DURATION = 680;
+
+/** Where each word sits (relative to the row) and how it is drawn, so a page change can start from there. */
+function measure(row: HTMLElement) {
+  const base = row.getBoundingClientRect();
+  return new Map<string, Spot>(
+    [...row.querySelectorAll<HTMLElement>("li[data-key]")].map((li) => {
+      const word = li.firstElementChild as HTMLElement;
+      const r = word.getBoundingClientRect();
+      const css = getComputedStyle(li);
+      const comma = li.querySelector(".bt-comma");
+      return [
+        li.dataset.key!,
+        {
+          x: r.left - base.left,
+          y: r.top - base.top,
+          size: parseFloat(css.fontSize),
+          spacing: css.letterSpacing,
+          color: getComputedStyle(word).color,
+          shadow: css.textShadow,
+          comma: !!comma && getComputedStyle(comma).display !== "none",
+        },
+      ];
+    }),
+  );
+}
+
 /**
- * The pages as huge words with counts (after things.bharadwhat.com), sized to run off the right edge of the
- * window on wide screens. On phones the row scrolls sideways instead.
+ * Moving between pages. Every word glides from where it was to where it now sits, all on one curve. The new page's
+ * word grows from its small size; text is only ever scaled down from its drawn size, so it stays sharp. The old
+ * big word can't grow back the same way (scaling the small word up would blur it), so a full-size copy shrinks into
+ * its new place and hands over to the real word as it lands.
+ */
+function play(row: HTMLElement, before: Map<string, Spot>, after: Map<string, Spot>) {
+  const timing = { duration: DURATION, easing: EASE };
+  for (const li of row.querySelectorAll<HTMLElement>("li[data-key]")) {
+    const a = before.get(li.dataset.key!);
+    const b = after.get(li.dataset.key!);
+    const word = li.firstElementChild as HTMLElement;
+    if (!a || !b || (a.x === b.x && a.y === b.y && a.size === b.size)) continue;
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+
+    if (a.size === b.size) {
+      // A small word making room: it only slides.
+      word.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], timing);
+    } else if (a.size < b.size) {
+      // The new page's word: grows from its small place, brightening as it goes; its count arrives as it settles.
+      word.animate(
+        [
+          { transformOrigin: "0 0", transform: `translate(${dx}px, ${dy}px) scale(${a.size / b.size})`, color: a.color },
+          { transformOrigin: "0 0", transform: "none", color: b.color },
+        ],
+        timing,
+      );
+      word.querySelector(".bt-n")?.animate([{ opacity: 0 }, { opacity: 0, offset: 0.55 }, { opacity: 1 }], timing);
+    } else {
+      // The old page's word: a copy drawn at the old size shrinks into the new place and fades as the real
+      // (small) word fades in under it.
+      const ghost = document.createElement("span");
+      ghost.setAttribute("aria-hidden", "");
+      ghost.className = "bt-ghost";
+      Object.assign(ghost.style, {
+        left: `${a.x}px`,
+        top: `${a.y}px`,
+        fontSize: `${a.size}px`,
+        letterSpacing: a.spacing,
+        color: a.color,
+        textShadow: a.shadow,
+      });
+      const copy = word.cloneNode(true) as HTMLElement;
+      copy.removeAttribute("href");
+      copy.querySelector<HTMLElement>(".bt-comma")?.style.setProperty("display", a.comma ? "inline" : "none");
+      ghost.append(copy);
+      row.append(ghost);
+      // Phones move the old word down a line, under the one growing in its place, so it fades out sooner there.
+      const out = Math.abs(dy) > 4 ? 0.4 : 0.85;
+      ghost
+        .animate(
+          [
+            { transformOrigin: "0 0", transform: "none", opacity: 1 },
+            { opacity: out < 0.5 ? 0 : 1, offset: out < 0.5 ? out : 0.6 },
+            { transformOrigin: "0 0", transform: `translate(${-dx}px, ${-dy}px) scale(${b.size / a.size})`, opacity: 0 },
+          ],
+          timing,
+        )
+        .finished.then(() => ghost.remove(), () => ghost.remove());
+      word.animate([{ opacity: 0 }, { opacity: 0, offset: out < 0.5 ? 0.45 : 0.6 }, { opacity: 1 }], timing);
+    }
+  }
+}
+
+/**
+ * The pages as huge words with counts (after things.bharadwhat.com): the current page full size and the others
+ * small beside it, so every page is in view. Clicking another page moves the words at once, while the page under
+ * the header lifts away.
  */
 export function Toolbar({ blogCount }: { blogCount: number }) {
-  const active = useActivePage();
+  const current = useActivePage();
   const onNavigate = usePageLeave();
+  const pathname = usePathname();
+  // The page being opened, so the words move on the click rather than after the old page has left.
+  const [opening, setOpening] = useState<{ from: string; page: ActivePage } | null>(null);
+  // Once the new page has arrived (or the address changed some other way, like Back), the address says it all.
+  if (opening && opening.from !== pathname) setOpening(null);
+  const active = opening && opening.from === pathname ? opening.page : current;
 
-  // The words run off the right edge, so slide the row until the current page's word is in view (and back to
-  // the start for Home). Instant on first load, smooth when moving between pages.
   const nav = useRef<HTMLElement>(null);
-  const placed = useRef(false);
-  useEffect(() => {
+  const spots = useRef(new Map<string, Spot>());
+  useLayoutEffect(() => {
     const row = nav.current?.querySelector<HTMLElement>(".giant-tabs");
-    const word = row?.querySelector<HTMLElement>("[data-active]");
-    if (!row || !word) return;
-    const fade = 96;
-    const start = word.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
-    const right = start + word.offsetWidth + fade - row.clientWidth;
-    const left = row.scrollLeft > start ? start : Math.max(row.scrollLeft, right);
-    const target = active === "home" ? 0 : Math.max(0, left);
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    row.scrollTo({ left: target, behavior: placed.current && !reduce ? "smooth" : "instant" });
-    placed.current = true;
+    if (!row) return;
+    // Settle anything still moving from a previous click before measuring.
+    row.querySelectorAll(".bt-ghost").forEach((g) => g.remove());
+    row.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+    const before = spots.current;
+    spots.current = measure(row);
+    if (before.size && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) play(row, before, spots.current);
+    const remeasure = () => (spots.current = measure(row));
+    window.addEventListener("resize", remeasure);
+    document.fonts?.ready.then(remeasure);
+    return () => window.removeEventListener("resize", remeasure);
   }, [active]);
-
-  // Mouse users can drag the row sideways; trackpads and touch scroll it natively. A drag never counts as a click.
-  const drag = useRef<{ x: number; left: number; moved: boolean; row: HTMLElement } | null>(null);
-  const dragged = useRef(false);
-
-  function onPointerDown(e: PointerEvent<HTMLElement>) {
-    const row = e.currentTarget.querySelector<HTMLElement>(".giant-tabs");
-    if (e.pointerType !== "mouse" || e.button !== 0 || !row || row.scrollWidth <= row.clientWidth) return;
-    drag.current = { x: e.clientX, left: row.scrollLeft, moved: false, row };
-    dragged.current = false;
-  }
-  function onPointerMove(e: PointerEvent<HTMLElement>) {
-    const d = drag.current;
-    if (!d) return;
-    const dx = e.clientX - d.x;
-    if (!d.moved && Math.abs(dx) > 5) {
-      d.moved = true;
-      d.row.setAttribute("data-dragging", "");
-      e.currentTarget.setPointerCapture(e.pointerId);
-    }
-    if (d.moved) d.row.scrollLeft = d.left - dx;
-  }
-  function onPointerUp() {
-    const d = drag.current;
-    drag.current = null;
-    if (!d) return;
-    dragged.current = d.moved;
-    d.row.removeAttribute("data-dragging");
-  }
 
   return (
     <nav
       ref={nav}
       aria-label="Site"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onDragStart={(e) => e.preventDefault()}
       onClickCapture={(e) => {
-        // Capture runs before the Link's own click, so preventing here stops its instant navigation.
-        if (!dragged.current) return onNavigate(e);
-        dragged.current = false;
-        e.preventDefault();
-        e.stopPropagation();
+        // Capture runs before the Link's own click, so the page can leave first (see usePageLeave).
+        if (!onNavigate(e)) return;
+        const href = (e.target as HTMLElement).closest("a[href]")?.getAttribute("href");
+        const page = pages.find((p) => p.href === href)?.page;
+        if (page) setOpening({ from: pathname, page });
       }}
     >
       <BigTabs
         label="Pages"
         size="clamp(64px, 13vw, 260px)"
         className="giant-tabs"
+        spotlight
+        scroll={false}
         active={active}
         items={pages.map(({ page, href, label }) => ({ key: page, label, href, count: page === "blog" ? blogCount : counts[page] }))}
       />
